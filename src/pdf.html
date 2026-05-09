@@ -14,6 +14,7 @@
     h1 { margin:0 0 8px; font-size:clamp(2rem,6vw,4rem); line-height:1; text-transform:uppercase; }
     .site-banner { border:3px solid var(--border); border-radius:var(--radius); background:var(--accent); box-shadow:var(--shadow-hard); padding:14px 16px 12px; margin:0 0 22px; }
     .site-banner-title { margin:0; color:var(--text); font:900 clamp(2rem,8vw,4.6rem)/1 "Arial Black", Arial, Helvetica, sans-serif; text-transform:uppercase; letter-spacing:.05em; text-shadow:2px 2px 0 #ffffff, 5px 5px 0 var(--accent-2); }
+    .site-banner-title .site-suffix { font-size:.45em; letter-spacing:.08em; vertical-align:super; margin-left:2px; }
     .site-banner-sub { margin:10px 0 0; color:var(--text); font:800 clamp(.8rem,2vw,1rem)/1.4 Arial, Helvetica, sans-serif; text-transform:uppercase; letter-spacing:.03em; }
     .site-banner-foot { margin:8px 0 0; color:var(--muted); font:700 .62rem/1.2 Arial, Helvetica, sans-serif; text-transform:uppercase; letter-spacing:.05em; }
     p { margin:0 0 10px; color:var(--muted); font-family:Arial, Helvetica, sans-serif; font-weight:700; }
@@ -25,9 +26,14 @@
     .section-block {
       background: var(--card-bg); margin-top:24px; padding:14px; border:2px solid var(--border); border-radius:12px; background:var(--card-bg); box-shadow:6px 6px 0 var(--accent-2); }
     .section-title { margin:0 0 10px; color:var(--text); font:900 clamp(1.25rem,2.8vw,1.8rem)/1.1 "Arial Black", Arial, Helvetica, sans-serif; text-transform:uppercase; letter-spacing:.03em; }
+    .section-title-row { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:10px; }
+    .small-action-btn { margin:0; padding:8px 10px; font:800 .68rem/1 Arial, Helvetica, sans-serif; letter-spacing:.03em; border-radius:10px; box-shadow:4px 4px 0 var(--accent-2); white-space:nowrap; }
     .offline-pill { width: 100%; margin-bottom: 16px; display:inline-block; padding:8px 12px; border:2px solid var(--border); border-radius:999px; background:var(--accent); color:var(--text); font-size:.9rem; text-transform:uppercase; box-shadow:5px 5px 0 var(--accent-2); }
     .toolbar { display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin:16px 0 20px; }
     button, .upload-label { border:2px solid var(--border); border-radius:12px; padding:11px 16px; background:var(--accent); color:var(--text); font:800 .86rem/1 Arial, Helvetica, sans-serif; text-transform:uppercase; letter-spacing:.04em; box-shadow:6px 6px 0 var(--accent-2); cursor:pointer; margin:0; display:inline-flex; align-items:center; gap:8px; }
+    .scan-mode-wrap { display:inline-flex; align-items:center; gap:8px; border:2px solid var(--border); border-radius:12px; padding:8px 10px; background:var(--panel); box-shadow:6px 6px 0 var(--accent-2); }
+    .scan-mode-wrap label { margin:0; color:var(--text); font:800 .72rem/1 Arial, Helvetica, sans-serif; text-transform:uppercase; letter-spacing:.04em; }
+    #scan-mode { border:2px solid var(--border); border-radius:10px; background:var(--accent); color:var(--text); padding:7px 10px; font:800 .8rem/1 Arial, Helvetica, sans-serif; text-transform:uppercase; letter-spacing:.03em; }
     button:disabled { opacity:.65; cursor:wait; }
     #file-input { display:none; }
     .text-small { font-size: small; }
@@ -92,8 +98,8 @@
       <button id="theme-toggle" class="mode-btn theme-toggle" type="button"><i class="fa-solid fa-moon" aria-hidden="true"></i> Dark</button>
     </div>
     <section class="site-banner" aria-label="Site banner">
-      <h1 class="site-banner-title">REDACT.SITE</h1>
-      <p class="site-banner-sub">No signup, no paywall, client-side offline processing, 100% secure, local model.</p>
+      <h1 class="site-banner-title">REDACT<span class="site-suffix">.SITE</span></h1>
+      <p class="site-banner-sub">Privacy-first redaction for text, images, audio, and PDFs - Automatically censor and remove sensitive data locally. We keep it private and secure as  this runs with local AI model</p>
       <p class="site-banner-foot">Powered by OpenAI privacy filter model</p>
     </section>
     <section class="section-block" aria-label="How it works section">
@@ -103,15 +109,28 @@
     </section>
     <section class="section-block" aria-label="Input section">
       <h2 class="section-title">Upload PDF to redact</h2>
+      <p><br/</p>
+      <div class="scan-mode-wrap">
+        <label for="scan-mode">Scan mode</label>
+        <select id="scan-mode">
+          <option value="fast">Fast</option>
+          <option value="balanced" selected>Balanced</option>
+          <option value="deep">Deep</option>
+        </select>
+      </div>
+      <p><br/</p>
       <div class="toolbar">
       <label for="file-input" class="upload-label"><i class="fa-solid fa-upload"></i>1. Upload PDF</label>
       <input id="file-input" type="file" accept="application/pdf">
+ 
       <button id="run-redact" type="button"><i class="fa-solid fa-user-shield"></i> 2. Detect + Redact PDF</button>
       <button id="download-btn" type="button" disabled><i class="fa-solid fa-download"></i> 3. Download redacted PDF</button>
     </div>
     </section>
     <section id="results-section" class="section-block" aria-label="Result section" hidden>
-      <h2 class="section-title">Result section</h2>
+      <div class="section-title-row">
+        <h2 class="section-title">Result section</h2>
+      </div>
       <div id="results-grid" class="workspace-grid">
       <div>
         <div id="preview-wrap" class="preview-wrap"></div>
@@ -151,6 +170,7 @@
     const fileInput = document.querySelector("#file-input");
     const runButton = document.querySelector("#run-redact");
     const downloadBtn = document.querySelector("#download-btn");
+    const scanModeSelect = document.querySelector("#scan-mode");
     const loadingOverlay = document.querySelector("#loading-overlay");
     const loadingStatus = document.querySelector("#loading-status");
     const output = document.querySelector("#output");
@@ -169,7 +189,6 @@
     const helpModal = document.querySelector("#help-modal");
     const closeHelp = document.querySelector("#close-help");
 
-    let Tesseract;
     let pdfjsLib;
     let PDFDocument;
     let rgb;
@@ -179,10 +198,42 @@
     let pageRenders = [];
     let latestEntities = [];
     let activeCategoryKey = "";
-    let workerPromise;
+    let florenceOcrPromise;
+    let faceLandmarkerPromise;
     let selectedBox = null;
     let interaction = null;
     let dependenciesReady = false;
+    let latestDebugPayload = null;
+    const SCAN_MODE_CONFIG = {
+      fast: {
+        label: "Fast",
+        ocr: { maxNewTokens: 900, tileEnabled: false, minWordsForNoTile: 9999, minLargeSide: 2000, tileCols: 1, tileRows: 1, overlap: 0.0, maxDim: 1200, stopAtWords: 120 },
+        eye: { maxDim: 1100, earlyReturnEyes: 1, tileEnabled: false, tileCols: 1, tileRows: 1, overlap: 0.0, stopAtEyes: 3 },
+      },
+      balanced: {
+        label: "Balanced",
+        ocr: { maxNewTokens: 1280, tileEnabled: true, minWordsForNoTile: 90, minLargeSide: 900, tileCols: 2, tileRows: 2, overlap: 0.2, maxDim: 1400, stopAtWords: 180 },
+        eye: { maxDim: 1280, earlyReturnEyes: 2, tileEnabled: true, tileCols: 2, tileRows: 3, overlap: 0.2, stopAtEyes: 6 },
+      },
+      deep: {
+        label: "Deep",
+        ocr: { maxNewTokens: 2048, tileEnabled: true, minWordsForNoTile: 140, minLargeSide: 700, tileCols: 3, tileRows: 3, overlap: 0.25, maxDim: 1800, stopAtWords: 320 },
+        eye: { maxDim: 1400, earlyReturnEyes: 3, tileEnabled: true, tileCols: 3, tileRows: 4, overlap: 0.25, stopAtEyes: 10 },
+      },
+    };
+    function getScanMode() {
+      const key = String(scanModeSelect?.value || "balanced");
+      if (Object.hasOwn(SCAN_MODE_CONFIG, key)) return key;
+      return "balanced";
+    }
+    function getScanConfig() {
+      return SCAN_MODE_CONFIG[getScanMode()] || SCAN_MODE_CONFIG.balanced;
+    }
+    function initScanMode() {
+      const stored = localStorage.getItem("redact-pdf-scan-mode");
+      if (stored && Object.hasOwn(SCAN_MODE_CONFIG, stored)) scanModeSelect.value = stored;
+      else scanModeSelect.value = "balanced";
+    }
 
     function applyTheme(theme) {
       document.documentElement.dataset.theme = theme;
@@ -198,10 +249,10 @@
     }
 
     /** External ESM bundles (CDN). */
-    const TESSERACT_MODULE_URL = "https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.esm.min.js";
     const PDFJS_MODULE_URL = "https://cdn.jsdelivr.net/npm/pdfjs-dist@4.10.38/build/pdf.mjs";
     const PDFJS_WORKER_URL = "https://cdn.jsdelivr.net/npm/pdfjs-dist@4.10.38/build/pdf.worker.mjs";
     const PDF_LIB_MODULE_URL = "https://cdn.jsdelivr.net/npm/pdf-lib@1.17.1/dist/pdf-lib.esm.min.js";
+    const TRANSFORMERS_MODULE_URL = "https://cdn.jsdelivr.net/npm/@huggingface/transformers";
 
     const CATEGORY_CONFIG = [
       { key: "private_person", name: "Person", short: "PER" },
@@ -212,6 +263,7 @@
       { key: "private_url", name: "URL", short: "URL" },
       { key: "private_phone", name: "Phone", short: "PHN" },
       { key: "sec", name: "Secret", short: "SEC" },
+      { key: "private_face_eye", name: "Eyes", short: "EYE" },
     ];
 
     const setStatus = (m) => { loadingStatus.textContent = m; console.log(m); };
@@ -221,6 +273,11 @@
       progressFill.style.width = `${clamped}%`;
       progressTrack.setAttribute("aria-valuenow", String(clamped));
       loadingOverlay.hidden = !(clamped > 0 && clamped < 100);
+    }
+    function setStageProgress(stageStart, stageEnd, current, total) {
+      const safeTotal = Math.max(1, total);
+      const ratio = Math.max(0, Math.min(1, current / safeTotal));
+      updateProgress(stageStart + (stageEnd - stageStart) * ratio);
     }
     const emptyCategoryCounts = () => Object.fromEntries(CATEGORY_CONFIG.map((x) => [x.key, 0]));
     function renderCategoryCounts(counts) {
@@ -259,12 +316,10 @@
     async function loadDependencies() {
       if (dependenciesReady) return;
       try {
-        const [tesseractMod, pdfjsMod, pdfLibMod] = await Promise.all([
-          import(TESSERACT_MODULE_URL),
+        const [pdfjsMod, pdfLibMod] = await Promise.all([
           import(PDFJS_MODULE_URL),
           import(PDF_LIB_MODULE_URL),
         ]);
-        Tesseract = tesseractMod.default;
         pdfjsLib = pdfjsMod;
         PDFDocument = pdfLibMod.PDFDocument;
         rgb = pdfLibMod.rgb;
@@ -277,10 +332,320 @@
         );
       }
     }
-    async function getWorker() {
-      await loadDependencies();
-      workerPromise ??= Tesseract.createWorker("eng");
-      return workerPromise;
+    async function getFlorenceOcr() {
+      florenceOcrPromise ??= (async () => {
+        const t = await import(TRANSFORMERS_MODULE_URL);
+        const modelId = "onnx-community/Florence-2-base-ft";
+        const [model, processor, tokenizer] = await Promise.all([
+          t.Florence2ForConditionalGeneration.from_pretrained(modelId, {
+            dtype: {
+              embed_tokens: "fp16",
+              vision_encoder: "fp16",
+              encoder_model: "q4",
+              decoder_model_merged: "q4",
+            },
+            device: "webgpu",
+          }),
+          t.AutoProcessor.from_pretrained(modelId),
+          t.AutoTokenizer.from_pretrained(modelId),
+        ]);
+        return { model, processor, tokenizer, RawImage: t.RawImage };
+      })();
+      return florenceOcrPromise;
+    }
+    function parseFlorenceStructuredOcr(result) {
+      const taskResult = result?.["<OCR_WITH_REGION>"];
+      const labels = taskResult?.labels || [];
+      const quadBoxes = taskResult?.quad_boxes || [];
+      const words = [];
+      for (let i = 0; i < Math.min(labels.length, quadBoxes.length); i++) {
+        const label = String(labels[i] || "").trim();
+        const quad = quadBoxes[i];
+        if (!label || !Array.isArray(quad) || quad.length < 8) continue;
+        const xs = [quad[0], quad[2], quad[4], quad[6]].map(Number);
+        const ys = [quad[1], quad[3], quad[5], quad[7]].map(Number);
+        if (![...xs, ...ys].every(Number.isFinite)) continue;
+        const x0 = Math.min(...xs);
+        const y0 = Math.min(...ys);
+        const x1 = Math.max(...xs);
+        const y1 = Math.max(...ys);
+        words.push({ text: label, bbox: { x0, y0, x1, y1 } });
+      }
+      return words;
+    }
+    function mapWordsToPageSpace(words, offsetX, offsetY, invScale) {
+      return words.map((word) => {
+        const b = word.bbox || {};
+        return {
+          ...word,
+          bbox: {
+            x0: offsetX + (Number(b.x0) || 0) * invScale,
+            y0: offsetY + (Number(b.y0) || 0) * invScale,
+            x1: offsetX + (Number(b.x1) || 0) * invScale,
+            y1: offsetY + (Number(b.y1) || 0) * invScale,
+          },
+        };
+      });
+    }
+    function wordDedupKey(word) {
+      const b = word.bbox || {};
+      const text = String(word.text || "").trim().toLowerCase();
+      const x0 = Math.round(Number(b.x0) || 0);
+      const y0 = Math.round(Number(b.y0) || 0);
+      const x1 = Math.round(Number(b.x1) || 0);
+      const y1 = Math.round(Number(b.y1) || 0);
+      return `${text}|${x0},${y0},${x1},${y1}`;
+    }
+    function mergeUniqueWords(target, incoming) {
+      const exact = new Set(target.map(wordDedupKey));
+      for (const w of incoming) {
+        const key = wordDedupKey(w);
+        if (exact.has(key)) continue;
+        const rectW = rectFromBbox(w.bbox);
+        let overlaps = false;
+        for (const e of target) {
+          if (String(e.text || "").trim().toLowerCase() !== String(w.text || "").trim().toLowerCase()) continue;
+          const rectE = rectFromBbox(e.bbox);
+          if (rectIou(rectW, rectE) >= 0.55) {
+            overlaps = true;
+            break;
+          }
+        }
+        if (overlaps) continue;
+        target.push(w);
+        exact.add(key);
+      }
+    }
+    async function florenceWordsFromCanvas(sourceCanvas, maxNewTokens) {
+      const florence = await getFlorenceOcr();
+      const imageDataUrl = sourceCanvas.toDataURL("image/png");
+      const rawImage = await florence.RawImage.fromURL(imageDataUrl);
+      const task = "<OCR_WITH_REGION>";
+      const visionInputs = await florence.processor(rawImage);
+      const prompts = florence.processor.construct_prompts(task);
+      const textInputs = florence.tokenizer(prompts);
+      const generatedIds = await florence.model.generate({
+        ...textInputs,
+        ...visionInputs,
+        max_new_tokens: maxNewTokens,
+      });
+      const generatedText = florence.tokenizer.batch_decode(generatedIds, { skip_special_tokens: false });
+      const firstText = generatedText?.[0] || "";
+      const structured = florence.processor.post_process_generation(firstText, task, rawImage.size);
+      return parseFlorenceStructuredOcr(structured);
+    }
+    async function recognizePdfPageWords(pageCanvas, pageNumber, scanConfig) {
+      setStatus("Running Florence-2 OCR with region...");
+      const ocrCfg = scanConfig.ocr;
+      const baseWords = await florenceWordsFromCanvas(pageCanvas, ocrCfg.maxNewTokens);
+      const mergedWords = [...baseWords];
+
+      const shouldTile = ocrCfg.tileEnabled
+        && baseWords.length < ocrCfg.minWordsForNoTile
+        && (pageCanvas.width >= ocrCfg.minLargeSide || pageCanvas.height >= ocrCfg.minLargeSide);
+      if (shouldTile) {
+        const cols = ocrCfg.tileCols;
+        const rows = ocrCfg.tileRows;
+        const overlap = ocrCfg.overlap;
+        const maxDim = ocrCfg.maxDim;
+        const tileW = pageCanvas.width / cols;
+        const tileH = pageCanvas.height / rows;
+        let stopTiling = false;
+        for (let row = 0; row < rows; row++) {
+          if (stopTiling) break;
+          for (let col = 0; col < cols; col++) {
+            const srcX = Math.max(0, Math.floor(col * tileW - tileW * overlap));
+            const srcY = Math.max(0, Math.floor(row * tileH - tileH * overlap));
+            const srcW = Math.min(pageCanvas.width - srcX, Math.ceil(tileW * (1 + overlap * 2)));
+            const srcH = Math.min(pageCanvas.height - srcY, Math.ceil(tileH * (1 + overlap * 2)));
+            if (srcW < 32 || srcH < 32) continue;
+            const scale = Math.min(1, maxDim / Math.max(srcW, srcH));
+            const dstW = Math.max(1, Math.round(srcW * scale));
+            const dstH = Math.max(1, Math.round(srcH * scale));
+            const tileCanvas = document.createElement("canvas");
+            tileCanvas.width = dstW;
+            tileCanvas.height = dstH;
+            const tileCtx = tileCanvas.getContext("2d");
+            tileCtx.drawImage(pageCanvas, srcX, srcY, srcW, srcH, 0, 0, dstW, dstH);
+            const tileWords = await florenceWordsFromCanvas(tileCanvas, ocrCfg.maxNewTokens);
+            const mapped = mapWordsToPageSpace(tileWords, srcX, srcY, scale > 0 ? 1 / scale : 1);
+            mergeUniqueWords(mergedWords, mapped);
+            if (mergedWords.length >= ocrCfg.stopAtWords) {
+              stopTiling = true;
+              break;
+            }
+          }
+        }
+      }
+      if (mergedWords.length === 0) {
+        throw new Error("Florence OCR returned no OCR_WITH_REGION boxes for this page.");
+      }
+      console.log(`Florence OCR page ${pageNumber}: baseWords=${baseWords.length}, mergedWords=${mergedWords.length}`);
+      return { words: mergedWords, engine: "florence2-webgpu", fallback: false };
+    }
+    async function getFaceLandmarker() {
+      faceLandmarkerPromise ??= (async () => {
+        const mp = await import("https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14");
+        const vision = await mp.FilesetResolver.forVisionTasks(
+          "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm",
+        );
+        return mp.FaceLandmarker.createFromOptions(vision, {
+          baseOptions: {
+            modelAssetPath:
+              "https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task",
+          },
+          runningMode: "IMAGE",
+          numFaces: 5,
+          outputFaceBlendshapes: false,
+          outputFaceTransformationMatrixes: false,
+        });
+      })();
+      return faceLandmarkerPromise;
+    }
+    const LEFT_EYE_INDICES = [33, 133, 159, 145, 160, 144, 158, 153];
+    const RIGHT_EYE_INDICES = [362, 263, 386, 374, 385, 380, 387, 373];
+    function eyeRectFromLandmarks(landmarks, indices, width, height) {
+      const points = indices.map((idx) => landmarks[idx]).filter((p) => p && Number.isFinite(p.x) && Number.isFinite(p.y));
+      if (points.length < 3) return null;
+      let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+      for (const p of points) {
+        const x = p.x * width;
+        const y = p.y * height;
+        minX = Math.min(minX, x); minY = Math.min(minY, y); maxX = Math.max(maxX, x); maxY = Math.max(maxY, y);
+      }
+      const baseW = Math.max(4, maxX - minX);
+      const baseH = Math.max(4, maxY - minY);
+      const padX = baseW * 0.6 + 4;
+      const padY = baseH * 0.9 + 3;
+      const left = Math.max(0, minX - padX);
+      const top = Math.max(0, minY - padY);
+      const right = Math.min(width, maxX + padX);
+      const bottom = Math.min(height, maxY + padY);
+      if (right - left < 6 || bottom - top < 6) return null;
+      return { x: left, y: top, w: right - left, h: bottom - top };
+    }
+    function rectIou(a, b) {
+      const ax2 = a.x + a.w;
+      const ay2 = a.y + a.h;
+      const bx2 = b.x + b.w;
+      const by2 = b.y + b.h;
+      const ix = Math.max(0, Math.min(ax2, bx2) - Math.max(a.x, b.x));
+      const iy = Math.max(0, Math.min(ay2, by2) - Math.max(a.y, b.y));
+      const inter = ix * iy;
+      if (inter <= 0) return 0;
+      const areaA = a.w * a.h;
+      const areaB = b.w * b.h;
+      return inter / Math.max(1, areaA + areaB - inter);
+    }
+    function pushUniqueRect(bucket, rect, iouThreshold = 0.45) {
+      for (const existing of bucket) {
+        if (rectIou(existing, rect) >= iouThreshold) return;
+      }
+      bucket.push(rect);
+    }
+    function collectEyeRectsFromFaceResult(result, width, height) {
+      const faces = result?.faceLandmarks || [];
+      const rects = [];
+      for (const landmarks of faces) {
+        const left = eyeRectFromLandmarks(landmarks, LEFT_EYE_INDICES, width, height);
+        const right = eyeRectFromLandmarks(landmarks, RIGHT_EYE_INDICES, width, height);
+        if (left) rects.push(left);
+        if (right) rects.push(right);
+      }
+      return { faces, rects };
+    }
+    async function detectEyeRectsOnCanvas(pageCanvas, pageNumber, scanConfig) {
+      try {
+        const faceLandmarker = await Promise.race([
+          getFaceLandmarker(),
+          new Promise((_, reject) => setTimeout(() => reject(new Error("MediaPipe init timeout")), 3500)),
+        ]);
+
+        const eyeCfg = scanConfig.eye;
+        const maxDim = eyeCfg.maxDim;
+        const allMapped = [];
+        let faceCount = 0;
+
+        // Pass 1: whole page.
+        const wholeScale = Math.min(1, maxDim / Math.max(pageCanvas.width, pageCanvas.height));
+        const wholeW = Math.max(1, Math.round(pageCanvas.width * wholeScale));
+        const wholeH = Math.max(1, Math.round(pageCanvas.height * wholeScale));
+        const wholeCanvas = document.createElement("canvas");
+        wholeCanvas.width = wholeW;
+        wholeCanvas.height = wholeH;
+        const wholeCtx = wholeCanvas.getContext("2d");
+        wholeCtx.drawImage(pageCanvas, 0, 0, wholeW, wholeH);
+        const wholeResult = faceLandmarker.detect(wholeCanvas);
+        const whole = collectEyeRectsFromFaceResult(wholeResult, wholeW, wholeH);
+        faceCount += whole.faces.length;
+        const wholeInv = wholeScale > 0 ? 1 / wholeScale : 1;
+        for (const r of whole.rects) {
+          pushUniqueRect(allMapped, {
+            x: r.x * wholeInv,
+            y: r.y * wholeInv,
+            w: r.w * wholeInv,
+            h: r.h * wholeInv,
+          });
+        }
+
+        // If whole-page pass already found enough eyes, skip expensive tiling.
+        if (allMapped.length >= eyeCfg.earlyReturnEyes) {
+          console.log(`Eye detection page ${pageNumber}: faces=${faceCount}, eyeBoxes=${allMapped.length} (whole-page pass only)`);
+          return allMapped;
+        }
+
+        if (!eyeCfg.tileEnabled) {
+          console.log(`Eye detection page ${pageNumber}: faces=${faceCount}, eyeBoxes=${allMapped.length} (tile scan disabled)`);
+          return allMapped;
+        }
+
+        // Pass 2: tiled scanning for small embedded photos in documents.
+        const tileCols = eyeCfg.tileCols;
+        const tileRows = eyeCfg.tileRows;
+        const overlap = eyeCfg.overlap;
+        const tileW = pageCanvas.width / tileCols;
+        const tileH = pageCanvas.height / tileRows;
+        let stopTileScan = false;
+        for (let row = 0; row < tileRows; row++) {
+          if (stopTileScan) break;
+          for (let col = 0; col < tileCols; col++) {
+            const srcX = Math.max(0, Math.floor(col * tileW - tileW * overlap));
+            const srcY = Math.max(0, Math.floor(row * tileH - tileH * overlap));
+            const srcW = Math.min(pageCanvas.width - srcX, Math.ceil(tileW * (1 + overlap * 2)));
+            const srcH = Math.min(pageCanvas.height - srcY, Math.ceil(tileH * (1 + overlap * 2)));
+            if (srcW < 24 || srcH < 24) continue;
+            const tileScale = Math.min(1, maxDim / Math.max(srcW, srcH));
+            const dstW = Math.max(1, Math.round(srcW * tileScale));
+            const dstH = Math.max(1, Math.round(srcH * tileScale));
+            const tileCanvas = document.createElement("canvas");
+            tileCanvas.width = dstW;
+            tileCanvas.height = dstH;
+            const tileCtx = tileCanvas.getContext("2d");
+            tileCtx.drawImage(pageCanvas, srcX, srcY, srcW, srcH, 0, 0, dstW, dstH);
+            const tileResult = faceLandmarker.detect(tileCanvas);
+            const tile = collectEyeRectsFromFaceResult(tileResult, dstW, dstH);
+            faceCount += tile.faces.length;
+            const inv = tileScale > 0 ? 1 / tileScale : 1;
+            for (const r of tile.rects) {
+              pushUniqueRect(allMapped, {
+                x: srcX + r.x * inv,
+                y: srcY + r.y * inv,
+                w: r.w * inv,
+                h: r.h * inv,
+              });
+            }
+            if (allMapped.length >= eyeCfg.stopAtEyes) {
+              stopTileScan = true;
+              break;
+            }
+          }
+        }
+        console.log(`Eye detection page ${pageNumber}: faces=${faceCount}, eyeBoxes=${allMapped.length}`);
+        return allMapped;
+      } catch (error) {
+        console.warn("MediaPipe eye detection unavailable:", error);
+        return [];
+      }
     }
     const normalizeWord = (v) => {
       let out = "";
@@ -715,7 +1080,7 @@
       return bytes instanceof Uint8Array ? bytes.slice() : new Uint8Array(bytes).slice();
     }
 
-    async function renderPdfPreview(bytes) {
+    async function renderPdfPreview(bytes, onPageRendered) {
       await loadDependencies();
       previewWrap.innerHTML = "";
       pageRenders = [];
@@ -748,7 +1113,9 @@
           pageHeightPoints: baseViewport.height,
         });
         previewWrap.appendChild(stage);
+        if (typeof onPageRendered === "function") onPageRendered(pageNum, pdf.numPages);
       }
+      return pdf.numPages;
     }
 
     function rectFromBbox(bbox) {
@@ -759,10 +1126,11 @@
       return { x: x0, y: y0, w: x1 - x0, h: y1 - y0 };
     }
 
-    async function buildPdfFromRenderedPages(renders) {
+    async function buildPdfFromRenderedPages(renders, onPageBuilt) {
       await loadDependencies();
       const pdfDoc = await PDFDocument.create();
-      for (const render of renders) {
+      for (let pageIndex = 0; pageIndex < renders.length; pageIndex++) {
+        const render = renders[pageIndex];
         const tempCanvas = document.createElement("canvas");
         tempCanvas.width = render.canvas.width;
         tempCanvas.height = render.canvas.height;
@@ -785,19 +1153,20 @@
           width: render.pageWidthPoints,
           height: render.pageHeightPoints,
         });
+        if (typeof onPageBuilt === "function") onPageBuilt(pageIndex + 1, renders.length);
       }
       return pdfDoc.save();
     }
 
-    async function redactRenderedPages(worker) {
+    async function redactRenderedPages(scanConfig, onPageProcessed) {
       const allEntities = [];
       const pageSummaries = [];
       const debugOriginal = [];
       const debugTargets = [];
       for (let pageIndex = 0; pageIndex < pageRenders.length; pageIndex++) {
         const render = pageRenders[pageIndex];
-        const { data } = await worker.recognize(render.canvas);
-        const words = (data.words || []).filter((w) => (w.text || "").trim().length > 0 && w.bbox);
+        const ocrResult = await recognizePdfPageWords(render.canvas, pageIndex + 1, scanConfig);
+        const words = ocrResult.words;
         const wordMap = buildWordMap(words.map((word) => ({ text: word.text })));
         const entities = await detectEntities(wordMap.text);
         allEntities.push(...entities);
@@ -839,11 +1208,26 @@
         }
         render.boxes = boxes;
         renderPageBoxes(pageIndex);
-        pageSummaries.push({ page: pageIndex + 1, entity_count: entities.length, redaction_rect_count: rectCount });
+        pageSummaries.push({
+          page: pageIndex + 1,
+          ocr_engine: ocrResult.engine,
+          ocr_fallback_from_florence: ocrResult.fallback,
+          entity_count: entities.length,
+          redaction_rect_count: rectCount,
+        });
         console.group(`PDF text debug - page ${pageIndex + 1}`);
         console.log("Extracted text (before redaction):", beforeText);
         console.log("Extracted text (after redaction):", afterText);
         console.groupEnd();
+        if (typeof onPageProcessed === "function") {
+          onPageProcessed({
+            page: pageIndex + 1,
+            totalPages: pageRenders.length,
+            words: words.length,
+            entities: entities.length,
+            boxes: rectCount,
+          });
+        }
       }
       console.group("PDF OCR/Redaction debug");
       console.log("Original OCR word bounding boxes:", debugOriginal);
@@ -852,6 +1236,59 @@
       console.table(debugTargets.slice(0, 200));
       console.groupEnd();
       return { allEntities, pageSummaries, debugOriginal, debugTargets };
+    }
+
+    async function applyEyePostPassPdf(debugTargets, scanConfig, onPageEyesProcessed) {
+      let eyeCount = 0;
+      for (let pageIndex = 0; pageIndex < pageRenders.length; pageIndex++) {
+        const render = pageRenders[pageIndex];
+        const eyeRects = await detectEyeRectsOnCanvas(render.canvas, pageIndex + 1, scanConfig);
+        if (eyeRects.length === 0) continue;
+        for (const rect of eyeRects) {
+          render.boxes.push({
+            x: Math.max(0, rect.x - 2),
+            y: Math.max(0, rect.y - 2),
+            w: rect.w + 4,
+            h: rect.h + 4,
+            categoryKey: "private_face_eye",
+            matchedWord: "eye_region",
+            entityWord: "face_eye",
+          });
+          debugTargets.push({
+            page: pageIndex + 1,
+            category: "private_face_eye",
+            matchedWord: "eye_region",
+            entityWord: "face_eye",
+            bbox: { x: rect.x, y: rect.y, w: rect.w, h: rect.h },
+          });
+          eyeCount += 1;
+        }
+        renderPageBoxes(pageIndex);
+        if (typeof onPageEyesProcessed === "function") {
+          onPageEyesProcessed({
+            page: pageIndex + 1,
+            totalPages: pageRenders.length,
+            eyeBoxes: eyeRects.length,
+          });
+        }
+      }
+      if (eyeCount > 0) {
+        const eyeEntities = Array.from({ length: eyeCount }, (_, idx) => ({
+          entity_group: "private_face_eye",
+          score: 1,
+          word: `eye_region_${idx + 1}`,
+        }));
+        latestEntities = [...latestEntities, ...eyeEntities];
+        renderCategoryCounts(computeCategoryCounts(latestEntities));
+      }
+      if (latestDebugPayload) {
+        latestDebugPayload.entities = latestEntities;
+        latestDebugPayload.eye_box_count = eyeCount;
+        latestDebugPayload.page_summaries = latestDebugPayload.page_summaries || [];
+        latestDebugPayload.redaction_box_count = pageRenders.reduce((sum, r) => sum + r.boxes.length, 0);
+        output.textContent = JSON.stringify(latestDebugPayload, null, 2);
+      }
+      console.log(`PDF eye post-pass added ${eyeCount} region(s).`);
     }
 
     fileInput.addEventListener("change", async (event) => {
@@ -887,30 +1324,66 @@
       downloadBtn.disabled = true;
       updateProgress(0);
       try {
+        const scanConfig = getScanConfig();
+        setStatus(`Starting pipeline (${scanConfig.label} mode)...`);
+        updateProgress(3);
+
+        setStatus("Loading PDF and rendering pages...");
+        updateProgress(8);
         await loadDependencies();
-        setStatus("Rendering PDF pages...");
-        updateProgress(25);
-        await renderPdfPreview(pdfBytes);
-        setStatus("Loading OCR worker...");
-        updateProgress(50);
-        const worker = await getWorker();
+        const totalPages = await renderPdfPreview(pdfBytes, (page, total) => {
+          setStatus(`Rendering preview page ${page}/${total}...`);
+          setStageProgress(8, 24, page, total);
+        });
+
+        setStatus("Loading Florence-2 OCR...");
+        updateProgress(28);
+        await getFlorenceOcr();
+        setStatus("Florence-2 ready.");
+        updateProgress(33);
         modelUnavailableReason = "";
-        setStatus("Detecting entities and redacting page images...");
-        updateProgress(75);
-        const { allEntities, pageSummaries, debugOriginal, debugTargets } = await redactRenderedPages(worker);
-        redactedPdfBytes = await buildPdfFromRenderedPages(pageRenders);
+
+        setStatus(`OCR + entity detection started (${scanConfig.label} mode)...`);
+        updateProgress(36);
+        const { allEntities, pageSummaries, debugOriginal, debugTargets } = await redactRenderedPages(
+          scanConfig,
+          ({ page, totalPages: pages, words, entities, boxes }) => {
+            setStatus(`OCR page ${page}/${pages}: ${words} words, ${entities} entities, ${boxes} masks`);
+            setStageProgress(36, 70, page, pages);
+          },
+        );
         latestEntities = allEntities;
         activeCategoryKey = "";
         categoryShort.textContent = "Click a count to view detected words";
         renderCategoryCounts(computeCategoryCounts(allEntities));
         showDetectionPanels();
-        output.textContent = JSON.stringify({
+        latestDebugPayload = {
           pages: pageRenders.length,
           entities: allEntities,
           page_summaries: pageSummaries,
           debug_original_bbox_count: debugOriginal.length,
           debug_target_bbox_count: debugTargets.length,
-        }, null, 2);
+        };
+        output.textContent = JSON.stringify(latestDebugPayload, null, 2);
+
+        setStatus("Running eye detection post-pass...");
+        updateProgress(72);
+        await applyEyePostPassPdf(
+          debugTargets,
+          scanConfig,
+          ({ page, totalPages: pages, eyeBoxes }) => {
+            setStatus(`Eye pass page ${page}/${pages}: ${eyeBoxes} eye region(s)`);
+            setStageProgress(72, 84, page, pages);
+          },
+        );
+
+        setStatus("Rebuilding redacted PDF...");
+        updateProgress(86);
+        redactedPdfBytes = await buildPdfFromRenderedPages(pageRenders, (page, pages) => {
+          setStatus(`Assembling output PDF page ${page}/${pages}...`);
+          setStageProgress(86, 98, page, pages);
+        });
+        setStatus(`Finalizing output (${totalPages} page${totalPages === 1 ? "" : "s"})...`);
         updateProgress(100);
         setStatus(`Done. Redacted PDF ready (${allEntities.length} entity hits).`);
         downloadBtn.disabled = false;
@@ -920,6 +1393,11 @@
       } finally {
         runButton.disabled = false;
       }
+    });
+    scanModeSelect.addEventListener("change", () => {
+      const mode = getScanMode();
+      localStorage.setItem("redact-pdf-scan-mode", mode);
+      setStatus(`Scan mode set to ${SCAN_MODE_CONFIG[mode].label}.`);
     });
     downloadBtn.addEventListener("click", () => {
       if (!redactedPdfBytes) return;
@@ -1039,6 +1517,7 @@
       localStorage.setItem("redact-theme", next);
     });
     initTheme();
+    initScanMode();
     renderCategoryCounts(emptyCategoryCounts());
   </script>
   <!-- Google Tag Manager (noscript) -->
