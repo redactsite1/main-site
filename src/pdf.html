@@ -1,0 +1,958 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>100% Offline WebGPU -  PDF Privacy Redaction</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+  <style>
+    :root { color-scheme: light; --bg:#ffffff; --panel:#ffffff; --text:#130000; --muted:#5a3a00; --accent:#ffe600; --accent-2:#ff1f1f; --border:#130000; }
+    * { box-sizing: border-box; }
+    body { margin:0; min-height:100vh; background:var(--bg); color:var(--text); font-family:"Arial Black", Arial, Helvetica, sans-serif; padding:24px; }
+    main { width:min(1200px,100%); margin:0 auto; padding:22px; border:1px solid var(--border); background:var(--panel); box-shadow:12px 12px 0 var(--accent-2); }
+    h1 { margin:0 0 8px; font-size:clamp(2rem,6vw,4rem); line-height:1; text-transform:uppercase; }
+    p { margin:0 0 10px; color:var(--muted); font-family:Arial, Helvetica, sans-serif; font-weight:700; }
+    .mode-switcher { display:flex; gap:10px; margin-bottom:12px; flex-wrap:wrap; }
+    .mode-btn { border:2px solid #130000; padding:10px 14px; background:#fff6b8; color:#130000; font:800 .85rem/1 Arial, Helvetica, sans-serif; text-transform:uppercase; box-shadow:4px 4px 0 #130000; display:inline-flex; align-items:center; gap:8px; margin:0; cursor:default; }
+    .mode-btn.active { background:var(--accent); box-shadow:6px 6px 0 var(--accent-2); }
+    .offline-pill { width: 100%; margin-bottom: 12px; display:inline-block; margin-bottom:8px; padding:8px 12px; border:2px solid #130000; background:var(--accent); color:#130000; font-size:.9rem; text-transform:uppercase; box-shadow:5px 5px 0 var(--accent-2); }
+    .toolbar { display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin:14px 0; }
+    button, .upload-label { border:2px solid #000; padding:11px 16px; background:var(--accent); color:#000; font:800 .86rem/1 Arial, Helvetica, sans-serif; text-transform:uppercase; letter-spacing:.04em; box-shadow:6px 6px 0 var(--accent-2); cursor:pointer; margin:0; display:inline-flex; align-items:center; gap:8px; }
+    button:disabled { opacity:.65; cursor:wait; }
+    #file-input { display:none; }
+    .text-small { font-size: small; }
+    .status { margin-top:8px; min-height:1.4em; color:var(--muted); }
+    .progress-wrap { margin:8px 0 14px; }
+    .progress-wrap.is-hidden { display: none; }
+    .progress-label { margin:0 0 6px; color:var(--text); font:700 13px/1.3 Consolas, monospace; }
+    .progress-track { width:100%; height:10px; background:#ffdede; border:1px solid var(--border); overflow:hidden; }
+    .progress-fill { width:0%; height:100%; background:linear-gradient(90deg,#ffe600,#ff1f1f); transition:width 240ms ease; }
+    .workspace-grid { display:grid; grid-template-columns:minmax(0,1fr) 250px; gap:16px; align-items:start; }
+    .preview-wrap { border:3px solid #130000; background:#fffdf5; box-shadow:8px 8px 0 var(--accent), 14px 14px 0 var(--accent-2); padding:10px; overflow:auto; max-height:68vh; }
+    .pdf-page-stage { position: relative; display: inline-block; line-height: 0; margin: 0 auto 12px; }
+    .pdf-preview-page { border:1px solid #130000; display:block; margin:0 auto 12px; background:white; max-width:100%; height:auto; }
+    .pdf-page-stage .pdf-preview-page { margin: 0; }
+    .page-overlay { position: absolute; inset: 0; pointer-events: auto; }
+    .redaction-box { position: absolute; border: 2px solid #fff; outline: 1px solid #130000; background: #000; cursor: grab; }
+    .redaction-box.selected { outline: 3px dashed #ffe600; }
+    .redaction-box.highlight { background: #ff1f1f; }
+    .redaction-resize {
+      position: absolute;
+      width: 12px;
+      height: 12px;
+      right: -6px;
+      bottom: -6px;
+      background: #fff;
+      border: 1px solid #130000;
+      cursor: nwse-resize;
+    }
+    .category-panel { border:2px solid #130000; background:#fff6b8; box-shadow:6px 6px 0 var(--accent-2); padding:10px; position:sticky; top:10px; }
+    .category-panel h3 { margin:0 0 8px; font-size:.95rem; text-transform:uppercase; letter-spacing:.03em; }
+    .category-list { display:grid; gap:8px; }
+    .category-item { width:100%; border:2px solid #130000; background:#fffdf5; color:#130000; padding:8px; display:flex; justify-content:space-between; align-items:center; font:700 .78rem/1.2 Arial, Helvetica, sans-serif; cursor:pointer; text-transform:uppercase; margin:0; box-shadow:none; }
+    .category-item.active { background:var(--accent); box-shadow:4px 4px 0 var(--accent-2); }
+    .category-short { margin-top:8px; min-height:1.2em; color:#130000; font:800 .78rem/1.2 Arial, Helvetica, sans-serif; text-transform:uppercase; word-break:break-word; }
+    details { margin-top:16px; border:2px solid #130000; background:#fff6b8; box-shadow:6px 6px 0 var(--accent-2); }
+    summary { cursor:pointer; padding:10px 12px; font-weight:700; }
+    pre { margin:0; padding:12px; white-space:pre-wrap; overflow:auto; font:700 13px/1.5 Arial, Helvetica, sans-serif; color:#130000; }
+    @media (max-width:980px){ .workspace-grid { grid-template-columns:1fr; } .category-panel { position:static; } }
+  </style>
+</head>
+<body>
+  <main>
+    <div class="mode-switcher" aria-label="Input mode switcher">
+      <button class="mode-btn" type="button"><i class="fa-solid fa-font"></i> Text</button>
+      <button class="mode-btn active" type="button"><i class="fa-solid fa-file-pdf"></i> PDF</button>
+      <button class="mode-btn" type="button"><i class="fa-solid fa-image"></i> Image</button>
+      <button class="mode-btn" type="button"><i class="fa-solid fa-music"></i> Sound</button>
+    </div>  <p><br/></p>
+    <h2> 100% Offline Secure, No Data is stored in server, Just in your computer locally</h2>
+
+    <h1> <span class="text-small">100% Offline WebGPU </span><br/> 🛡️ Privacy Redaction for 🗎 PDF (Powered by OpenAI Privacy filter)</h1>
+    <p><br/></p>  <p><br/></p>
+    <div class="offline-pill">Upload PDF -> detect privacy -> redact -> download</div>
+    <p><br/></p>
+    <!-- <p>Upload-only flow (no sample PDF). Text regions are blacked out while logo and layout remain.</p> -->
+    <div class="toolbar">
+      <label for="file-input" class="upload-label"><i class="fa-solid fa-upload"></i>1. Upload PDF</label>
+      <input id="file-input" type="file" accept="application/pdf">
+      <button id="run-redact" type="button"><i class="fa-solid fa-user-shield"></i> 2. Detect + Redact PDF</button>
+      <button id="download-btn" type="button" disabled><i class="fa-solid fa-download"></i> 3. Download redacted PDF</button>
+    </div>
+    <p><br/></p>
+    <div id="status" class="status">Ready. Upload a PDF file.</div>
+    <div class="progress-wrap is-hidden" aria-live="polite">
+      <p id="progress-label" class="progress-label">Progress: 0%</p>
+      <div class="progress-track" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><div id="progress-fill" class="progress-fill"></div></div>
+    </div>
+    <div class="workspace-grid">
+      <div>
+        <div id="preview-wrap" class="preview-wrap"></div>
+        <br/><br/><br/>
+        <details>
+          <summary>Detection Output (collapsed by default)</summary>
+          <pre id="output"></pre>
+        </details>
+      </div>
+      <aside class="category-panel" aria-label="Privacy category counters">
+        <h3>Detected counts</h3>
+        <div id="category-list" class="category-list"></div>
+        <div id="category-short" class="category-short">Click a count to view detected words</div>
+      </aside>
+    </div>
+  </main>
+  <script type="module">
+
+    const fileInput = document.querySelector("#file-input");
+    const runButton = document.querySelector("#run-redact");
+    const downloadBtn = document.querySelector("#download-btn");
+    const statusEl = document.querySelector("#status");
+    const output = document.querySelector("#output");
+    const progressLabel = document.querySelector("#progress-label");
+    const progressFill = document.querySelector("#progress-fill");
+    const progressTrack = document.querySelector(".progress-track");
+    const progressWrap = document.querySelector(".progress-wrap");
+    const previewWrap = document.querySelector("#preview-wrap");
+    const categoryList = document.querySelector("#category-list");
+    const categoryShort = document.querySelector("#category-short");
+
+    let Tesseract;
+    let pdfjsLib;
+    let PDFDocument;
+    let rgb;
+    let modelUnavailableReason = "";
+    let pdfBytes = null;
+    let redactedPdfBytes = null;
+    let pageRenders = [];
+    let latestEntities = [];
+    let activeCategoryKey = "";
+    let workerPromise;
+    let selectedBox = null;
+    let interaction = null;
+    let dependenciesReady = false;
+
+    /** External ESM bundles (CDN). */
+    const TESSERACT_MODULE_URL = "https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.esm.min.js";
+    const PDFJS_MODULE_URL = "https://cdn.jsdelivr.net/npm/pdfjs-dist@4.10.38/build/pdf.mjs";
+    const PDFJS_WORKER_URL = "https://cdn.jsdelivr.net/npm/pdfjs-dist@4.10.38/build/pdf.worker.mjs";
+    const PDF_LIB_MODULE_URL = "https://cdn.jsdelivr.net/npm/pdf-lib@1.17.1/dist/pdf-lib.esm.min.js";
+
+    const CATEGORY_CONFIG = [
+      { key: "private_person", name: "Person", short: "PER" },
+      { key: "private_email", name: "Email", short: "EML" },
+      { key: "private_date", name: "Date", short: "DAT" },
+      { key: "private_address", name: "Address", short: "ADR" },
+      { key: "account_number", name: "Account", short: "ACC" },
+      { key: "private_url", name: "URL", short: "URL" },
+      { key: "private_phone", name: "Phone", short: "PHN" },
+      { key: "sec", name: "Secret", short: "SEC" },
+    ];
+
+    const setStatus = (m) => { statusEl.textContent = m; console.log(m); };
+    function updateProgress(percent) {
+      const clamped = Math.max(0, Math.min(100, percent));
+      progressLabel.textContent = `Progress: ${clamped}%`;
+      progressFill.style.width = `${clamped}%`;
+      progressTrack.setAttribute("aria-valuenow", String(clamped));
+      progressWrap.classList.toggle("is-hidden", clamped === 0);
+    }
+    const emptyCategoryCounts = () => Object.fromEntries(CATEGORY_CONFIG.map((x) => [x.key, 0]));
+    function renderCategoryCounts(counts) {
+      categoryList.innerHTML = "";
+      for (const item of CATEGORY_CONFIG) {
+        const b = document.createElement("button");
+        b.type = "button";
+        b.className = `category-item${activeCategoryKey === item.key ? " active" : ""}`;
+        b.dataset.key = item.key;
+        b.innerHTML = `<span>${item.name}</span><span>${counts[item.key] ?? 0}</span>`;
+        categoryList.appendChild(b);
+      }
+    }
+    function computeCategoryCounts(entities) {
+      const counts = emptyCategoryCounts();
+      for (const e of entities) {
+        const key = String(e.entity_group || "").toLowerCase();
+        if (Object.hasOwn(counts, key)) counts[key] += 1;
+      }
+      return counts;
+    }
+    function wordsForCategory(entities, key) {
+      return [...new Set(
+        entities
+          .filter((e) => String(e.entity_group || "").toLowerCase() === key)
+          .map((e) => String(e.word || "").trim())
+          .filter(Boolean),
+      )];
+    }
+
+    async function loadDependencies() {
+      if (dependenciesReady) return;
+      try {
+        const [tesseractMod, pdfjsMod, pdfLibMod] = await Promise.all([
+          import(TESSERACT_MODULE_URL),
+          import(PDFJS_MODULE_URL),
+          import(PDF_LIB_MODULE_URL),
+        ]);
+        Tesseract = tesseractMod.default;
+        pdfjsLib = pdfjsMod;
+        PDFDocument = pdfLibMod.PDFDocument;
+        rgb = pdfLibMod.rgb;
+        pdfjsLib.GlobalWorkerOptions.workerSrc = PDFJS_WORKER_URL;
+        dependenciesReady = true;
+      } catch (error) {
+        console.error("CDN dependency load failed:", error);
+        throw new Error(
+          "Could not load PDF libraries from the CDN. Check your network, CORS, and that the page is served over http(s) (not file://).",
+        );
+      }
+    }
+    async function getWorker() {
+      await loadDependencies();
+      workerPromise ??= Tesseract.createWorker("eng");
+      return workerPromise;
+    }
+    const normalizeWord = (v) => {
+      let out = "";
+      const s = String(v || "").toLowerCase();
+      for (const ch of s) {
+        const cp = ch.codePointAt(0);
+        if (
+          (cp >= 48 && cp <= 57) ||
+          (cp >= 65 && cp <= 90) ||
+          (cp >= 97 && cp <= 122) ||
+          "@._+-".includes(ch)
+        ) {
+          out += ch;
+        }
+      }
+      return out;
+    };
+    const entityParts = (w) => {
+      const s = String(w || "").toLowerCase();
+      const parts = [];
+      let buf = "";
+      for (const ch of s) {
+        const cp = ch.codePointAt(0);
+        const ok =
+          (cp >= 48 && cp <= 57) ||
+          (cp >= 65 && cp <= 90) ||
+          (cp >= 97 && cp <= 122) ||
+          "@._+-".includes(ch);
+        if (ok) buf += ch;
+        else if (buf.length > 0) {
+          parts.push(buf);
+          buf = "";
+        }
+      }
+      if (buf.length > 0) parts.push(buf);
+      return parts.map((p) => normalizeWord(p)).filter(Boolean);
+    };
+    function splitWhitespace(str) {
+      const tokens = [];
+      let buf = "";
+      for (let i = 0; i < str.length; i++) {
+        const c = str.charCodeAt(i);
+        if (c === 32 || c === 9 || c === 10 || c === 13) {
+          if (buf.length > 0) {
+            tokens.push(buf);
+            buf = "";
+          }
+        } else {
+          buf += str[i];
+        }
+      }
+      if (buf.length > 0) tokens.push(buf);
+      return tokens;
+    }
+    function buildPageWords(textContent) {
+      const words = [];
+      for (const item of textContent.items) {
+        const tokens = splitWhitespace(String(item.str || ""));
+        if (!tokens.length) continue;
+        const x = item.transform?.[4] ?? 0;
+        const y = item.transform?.[5] ?? 0;
+        const width = item.width ?? 0;
+        const height = Math.abs(item.height || item.transform?.[3] || 10);
+        const eachWidth = width / tokens.length || width;
+        for (let i = 0; i < tokens.length; i++) {
+          words.push({ text: tokens[i], x: x + eachWidth * i, y, w: Math.max(4, eachWidth), h: Math.max(8, height) });
+        }
+      }
+      return words;
+    }
+    function buildWordMap(words) {
+      const parts = [];
+      const entries = [];
+      let idx = 0;
+      for (let i = 0; i < words.length; i++) {
+        if (parts.length) { parts.push(" "); idx += 1; }
+        const start = idx;
+        parts.push(words[i].text);
+        idx += words[i].text.length;
+        entries.push({ start, end: idx, wordIndex: i });
+      }
+      return { text: parts.join(""), entries };
+    }
+    function findWordIndexesForEntity(entity, wordMap, words) {
+      const matched = new Set();
+      if (Number.isInteger(entity.start) && Number.isInteger(entity.end)) {
+        for (const entry of wordMap.entries) if (entry.end > entity.start && entry.start < entity.end) matched.add(entry.wordIndex);
+      }
+      if (matched.size) return [...matched];
+      const target = normalizeWord(entity.word);
+      if (!target) return [];
+      const parts = entityParts(entity.word);
+      for (let i = 0; i < words.length; i++) {
+        const token = normalizeWord(words[i].text);
+        if (!token) continue;
+        if (token === target || token.includes(target) || target.includes(token)) { matched.add(i); continue; }
+        for (const part of parts) {
+          if (part.length < 3) continue;
+          if (token === part || token.includes(part) || part.includes(token)) { matched.add(i); break; }
+        }
+      }
+      return [...matched];
+    }
+
+    function buildRedactedText(words, wordMap, entities) {
+      const redactedWords = words.map((word) => String(word.text || ""));
+      for (const entity of entities) {
+        const hitIndexes = findWordIndexesForEntity(entity, wordMap, words);
+        for (const idx of hitIndexes) {
+          redactedWords[idx] = "[REDACTED]";
+        }
+      }
+      return redactedWords.join(" ");
+    }
+
+    function renderPageBoxes(pageIndex) {
+      const render = pageRenders[pageIndex];
+      if (!render || !render.overlay) return;
+      const overlay = render.overlay;
+      overlay.innerHTML = "";
+      for (let i = 0; i < render.boxes.length; i++) {
+        const box = render.boxes[i];
+        const el = document.createElement("div");
+        const selected = selectedBox && selectedBox.pageIndex === pageIndex && selectedBox.boxIndex === i;
+        const highlighted = activeCategoryKey && box.categoryKey === activeCategoryKey;
+        el.className = `redaction-box${selected ? " selected" : ""}${highlighted ? " highlight" : ""}`;
+        el.dataset.pageIndex = String(pageIndex);
+        el.dataset.boxIndex = String(i);
+        el.style.left = `${box.x}px`;
+        el.style.top = `${box.y}px`;
+        el.style.width = `${box.w}px`;
+        el.style.height = `${box.h}px`;
+        const handle = document.createElement("div");
+        handle.className = "redaction-resize";
+        el.appendChild(handle);
+        overlay.appendChild(el);
+      }
+    }
+
+    function renderAllBoxes() {
+      for (let i = 0; i < pageRenders.length; i++) renderPageBoxes(i);
+    }
+
+    function clampBoxToCanvas(box, canvas) {
+      box.x = Math.max(0, Math.min(canvas.width - 1, box.x));
+      box.y = Math.max(0, Math.min(canvas.height - 1, box.y));
+      box.w = Math.max(4, Math.min(canvas.width - box.x, box.w));
+      box.h = Math.max(4, Math.min(canvas.height - box.y, box.h));
+      return box;
+    }
+
+    function isEmailLocalChar(ch) {
+      const cp = ch.charCodeAt(0);
+      if ((cp >= 48 && cp <= 57) || (cp >= 65 && cp <= 90) || (cp >= 97 && cp <= 122)) return true;
+      if ("._%+-".includes(ch)) return true;
+      return false;
+    }
+    function isEmailDomainChar(ch) {
+      return isEmailLocalChar(ch) || ch === ".";
+    }
+    function scanEmails(text) {
+      const out = [];
+      for (let i = 0; i < text.length; i++) {
+        if (text[i] !== "@") continue;
+        let ls = i - 1;
+        while (ls >= 0 && isEmailLocalChar(text[ls])) ls--;
+        ls++;
+        if (ls >= i) continue;
+        let re = i + 1;
+        while (re < text.length && isEmailDomainChar(text[re])) re++;
+        const dom = text.slice(i + 1, re);
+        const dot = dom.lastIndexOf(".");
+        if (dot < 0 || dot === dom.length - 1) continue;
+        const tld = dom.slice(dot + 1);
+        if (tld.length < 2) continue;
+        const word = text.slice(ls, re);
+        out.push({ entity_group: "private_email", score: 1, word, start: ls, end: re });
+      }
+      return out;
+    }
+    function isPhoneChar(ch) {
+      const cp = ch.charCodeAt(0);
+      if (cp >= 48 && cp <= 57) return true;
+      return "+()- .".includes(ch);
+    }
+    function countDigits(s) {
+      let n = 0;
+      for (let i = 0; i < s.length; i++) {
+        const c = s.charCodeAt(i);
+        if (c >= 48 && c <= 57) n++;
+      }
+      return n;
+    }
+    function scanPhones(text) {
+      const out = [];
+      for (let i = 0; i < text.length; i++) {
+        const c = text.charCodeAt(i);
+        if (c !== 43 && (c < 48 || c > 57)) continue;
+        let j = i;
+        while (j < text.length && isPhoneChar(text[j])) j++;
+        const seg = text.slice(i, j);
+        if (countDigits(seg) < 8) continue;
+        out.push({ entity_group: "private_phone", score: 1, word: seg, start: i, end: j });
+        i = j - 1;
+      }
+      return out;
+    }
+    function isDateSep(ch) {
+      return ch === "-" || ch === "/";
+    }
+    function readNDigitsAt(text, pos, n) {
+      if (pos + n > text.length) return null;
+      for (let k = 0; k < n; k++) {
+        const c = text.charCodeAt(pos + k);
+        if (c < 48 || c > 57) return null;
+      }
+      return text.slice(pos, pos + n);
+    }
+    function readFlexibleNum(text, pos, minLen, maxLen) {
+      let j = pos;
+      while (j < text.length && j < pos + maxLen) {
+        const c = text.charCodeAt(j);
+        if (c < 48 || c > 57) break;
+        j++;
+      }
+      const len = j - pos;
+      if (len < minLen || len > maxLen) return null;
+      return { end: j, slice: text.slice(pos, j) };
+    }
+    function scanDates(text) {
+      const out = [];
+      for (let i = 0; i < text.length; i++) {
+        if (i + 10 <= text.length && readNDigitsAt(text, i, 4) && isDateSep(text[i + 4])) {
+          const m = readNDigitsAt(text, i + 5, 2);
+          if (m && isDateSep(text[i + 7]) && readNDigitsAt(text, i + 8, 2)) {
+            const end = i + 10;
+            out.push({ entity_group: "private_date", score: 1, word: text.slice(i, end), start: i, end });
+            i += 9;
+            continue;
+          }
+        }
+        const d1 = readFlexibleNum(text, i, 1, 2);
+        if (!d1 || !isDateSep(text[d1.end])) continue;
+        const d2 = readFlexibleNum(text, d1.end + 1, 1, 2);
+        if (!d2 || !isDateSep(text[d2.end])) continue;
+        const y = readFlexibleNum(text, d2.end + 1, 2, 4);
+        if (!y) continue;
+        const start = i;
+        const end = y.end;
+        const word = text.slice(start, end);
+        if (word.length >= 8 && countDigits(word) >= 4) {
+          out.push({ entity_group: "private_date", score: 1, word, start, end });
+          i = end - 1;
+        }
+      }
+      return out;
+    }
+    function isUrlTailChar(ch) {
+      const cp = ch.charCodeAt(0);
+      if (cp <= 32) return false;
+      if ("<>\"'`".includes(ch)) return false;
+      return true;
+    }
+    function scanUrls(text) {
+      const out = [];
+      const lower = text.toLowerCase();
+      const prefixes = ["https://", "http://", "www."];
+      for (const pre of prefixes) {
+        let pos = 0;
+        while (true) {
+          const idx = lower.indexOf(pre, pos);
+          if (idx === -1) break;
+          let j = idx + pre.length;
+          while (j < text.length && isUrlTailChar(text[j])) j++;
+          if (j - idx > pre.length + 2) {
+            out.push({ entity_group: "private_url", score: 1, word: text.slice(idx, j), start: idx, end: j });
+          }
+          pos = idx + pre.length;
+        }
+      }
+      return out;
+    }
+    function scanAccountNumbers(text) {
+      const out = [];
+      for (let i = 0; i < text.length; i++) {
+        const c = text.charCodeAt(i);
+        if (c < 48 || c > 57) continue;
+        let j = i;
+        while (j < text.length && text.charCodeAt(j) >= 48 && text.charCodeAt(j) <= 57) j++;
+        if (j - i < 3) continue;
+        let end = j;
+        let jj = j;
+        let extra = false;
+        while (jj < text.length) {
+          const sep = text[jj];
+          if (sep !== "-" && sep !== " " && sep !== "\t") break;
+          jj++;
+          let k = jj;
+          while (k < text.length && text.charCodeAt(k) >= 48 && text.charCodeAt(k) <= 57) k++;
+          if (k - jj < 2) break;
+          end = k;
+          jj = k;
+          extra = true;
+        }
+        if (extra) {
+          out.push({ entity_group: "account_number", score: 1, word: text.slice(i, end), start: i, end });
+          i = end - 1;
+        }
+      }
+      return out;
+    }
+    const SEC_KEYWORDS = ["api_key", "api-key", "apikey", "secret", "token", "password", "ssn"];
+    function isWordBoundaryAt(lower, idx, len) {
+      if (idx > 0) {
+        const b = lower.charCodeAt(idx - 1);
+        if ((b >= 97 && b <= 122) || (b >= 48 && b <= 57) || b === 95) return false;
+      }
+      if (idx + len < lower.length) {
+        const a = lower.charCodeAt(idx + len);
+        if ((a >= 97 && a <= 122) || (a >= 48 && a <= 57) || a === 95) return false;
+      }
+      return true;
+    }
+    function scanSecKeywords(text) {
+      const out = [];
+      const lower = text.toLowerCase();
+      for (const w of SEC_KEYWORDS) {
+        let pos = 0;
+        while (true) {
+          const idx = lower.indexOf(w, pos);
+          if (idx === -1) break;
+          if (isWordBoundaryAt(lower, idx, w.length)) {
+            out.push({ entity_group: "sec", score: 1, word: text.slice(idx, idx + w.length), start: idx, end: idx + w.length });
+          }
+          pos = idx + 1;
+        }
+      }
+      return out;
+    }
+    const PDF_NAME_LABELS = ["recipient name ref", "beneficiary name", "recipient name", "customer name", "name"];
+    function pdfWs(cp) {
+      return cp === 32 || cp === 9 || cp === 10 || cp === 13;
+    }
+    function pdfLetter(cp) {
+      return (cp >= 65 && cp <= 90) || (cp >= 97 && cp <= 122);
+    }
+    function pdfNameInner(cp) {
+      return pdfLetter(cp) || cp === 39 || cp === 45 || cp === 46;
+    }
+    function pdfWordBoundaryBefore(t, index) {
+      if (index <= 0) return true;
+      const cp = t.charCodeAt(index - 1);
+      return !pdfLetter(cp) && !(cp >= 48 && cp <= 57);
+    }
+    function pdfCollapseSpaces(s) {
+      let out = "";
+      let sp = false;
+      for (let i = 0; i < s.length; i++) {
+        const cp = s.charCodeAt(i);
+        if (pdfWs(cp)) {
+          if (!sp && out.length > 0) {
+            out += " ";
+            sp = true;
+          }
+        } else {
+          out += s[i];
+          sp = false;
+        }
+      }
+      return out.trim();
+    }
+    function scanLabeledPersonNames(text) {
+      const entities = [];
+      const lower = text.toLowerCase();
+      for (let i = 0; i < text.length; i++) {
+        let best = "";
+        for (const label of PDF_NAME_LABELS) {
+          if (label.length <= best.length) continue;
+          if (lower.startsWith(label, i)) best = label;
+        }
+        if (!best || !pdfWordBoundaryBefore(text, i)) continue;
+        let j = i + best.length;
+        while (j < text.length && pdfWs(text.charCodeAt(j))) j++;
+        if (j >= text.length || text[j] !== ":") continue;
+        j++;
+        while (j < text.length && pdfWs(text.charCodeAt(j))) j++;
+        const nameStart = j;
+        let nameEnd = nameStart;
+        let wordCount = 0;
+        while (j < text.length) {
+          const cp = text.charCodeAt(j);
+          if (pdfWs(cp)) {
+            while (j < text.length && pdfWs(text.charCodeAt(j))) j++;
+            if (j < text.length && pdfNameInner(text.charCodeAt(j))) continue;
+            break;
+          }
+          if (!pdfNameInner(cp)) break;
+          while (j < text.length && pdfNameInner(text.charCodeAt(j))) j++;
+          wordCount++;
+          nameEnd = j;
+        }
+        if (wordCount < 2) continue;
+        const captured = pdfCollapseSpaces(text.slice(nameStart, nameEnd));
+        if (!captured.includes(" ")) continue;
+        entities.push({
+          entity_group: "private_person",
+          score: 1,
+          word: captured,
+          start: nameStart,
+          end: nameEnd,
+        });
+        i = nameEnd - 1;
+      }
+      return entities;
+    }
+    function scanEntitiesFromText(text) {
+      return [
+        ...scanEmails(text),
+        ...scanPhones(text),
+        ...scanDates(text),
+        ...scanUrls(text),
+        ...scanAccountNumbers(text),
+        ...scanSecKeywords(text),
+        ...scanLabeledPersonNames(text),
+      ];
+    }
+
+    async function detectEntities(text) {
+      return scanEntitiesFromText(text);
+    }
+    function cloneBytes(bytes) {
+      return bytes instanceof Uint8Array ? bytes.slice() : new Uint8Array(bytes).slice();
+    }
+
+    async function renderPdfPreview(bytes) {
+      await loadDependencies();
+      previewWrap.innerHTML = "";
+      pageRenders = [];
+      selectedBox = null;
+      const pdf = await pdfjsLib.getDocument({ data: cloneBytes(bytes) }).promise;
+      for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
+        const page = await pdf.getPage(pageNum);
+        const viewport = page.getViewport({ scale: 2 });
+        const stage = document.createElement("div");
+        stage.className = "pdf-page-stage";
+        const canvas = document.createElement("canvas");
+        canvas.className = "pdf-preview-page";
+        canvas.width = Math.floor(viewport.width);
+        canvas.height = Math.floor(viewport.height);
+        await page.render({ canvasContext: canvas.getContext("2d"), viewport }).promise;
+        const overlay = document.createElement("div");
+        overlay.className = "page-overlay";
+        overlay.style.width = `${canvas.width}px`;
+        overlay.style.height = `${canvas.height}px`;
+        stage.style.width = `${canvas.width}px`;
+        stage.style.height = `${canvas.height}px`;
+        stage.appendChild(canvas);
+        stage.appendChild(overlay);
+        const baseViewport = page.getViewport({ scale: 1 });
+        pageRenders.push({
+          canvas,
+          overlay,
+          boxes: [],
+          pageWidthPoints: baseViewport.width,
+          pageHeightPoints: baseViewport.height,
+        });
+        previewWrap.appendChild(stage);
+      }
+    }
+
+    function rectFromBbox(bbox) {
+      const x0 = Math.min(bbox.x0, bbox.x1);
+      const y0 = Math.min(bbox.y0, bbox.y1);
+      const x1 = Math.max(bbox.x0, bbox.x1);
+      const y1 = Math.max(bbox.y0, bbox.y1);
+      return { x: x0, y: y0, w: x1 - x0, h: y1 - y0 };
+    }
+
+    async function buildPdfFromRenderedPages(renders) {
+      await loadDependencies();
+      const pdfDoc = await PDFDocument.create();
+      for (const render of renders) {
+        const tempCanvas = document.createElement("canvas");
+        tempCanvas.width = render.canvas.width;
+        tempCanvas.height = render.canvas.height;
+        const tctx = tempCanvas.getContext("2d");
+        tctx.drawImage(render.canvas, 0, 0);
+        for (const box of render.boxes) {
+          tctx.fillStyle = "#000000";
+          tctx.fillRect(box.x, box.y, box.w, box.h);
+        }
+        const pngBytes = await new Promise((resolve) => {
+          tempCanvas.toBlob(async (blob) => {
+            resolve(new Uint8Array(await blob.arrayBuffer()));
+          }, "image/png");
+        });
+        const pngImage = await pdfDoc.embedPng(pngBytes);
+        const page = pdfDoc.addPage([render.pageWidthPoints, render.pageHeightPoints]);
+        page.drawImage(pngImage, {
+          x: 0,
+          y: 0,
+          width: render.pageWidthPoints,
+          height: render.pageHeightPoints,
+        });
+      }
+      return pdfDoc.save();
+    }
+
+    async function redactRenderedPages(worker) {
+      const allEntities = [];
+      const pageSummaries = [];
+      const debugOriginal = [];
+      const debugTargets = [];
+      for (let pageIndex = 0; pageIndex < pageRenders.length; pageIndex++) {
+        const render = pageRenders[pageIndex];
+        const { data } = await worker.recognize(render.canvas);
+        const words = (data.words || []).filter((w) => (w.text || "").trim().length > 0 && w.bbox);
+        const wordMap = buildWordMap(words.map((word) => ({ text: word.text })));
+        const entities = await detectEntities(wordMap.text);
+        allEntities.push(...entities);
+        const beforeText = wordMap.text;
+        const afterText = buildRedactedText(words, wordMap, entities);
+
+        const boxes = [];
+        let rectCount = 0;
+        for (const word of words) {
+          const rect = rectFromBbox(word.bbox);
+          debugOriginal.push({
+            page: pageIndex + 1,
+            text: word.text,
+            bbox: { x: rect.x, y: rect.y, w: rect.w, h: rect.h },
+          });
+        }
+        for (const entity of entities) {
+          const hitIndexes = findWordIndexesForEntity(entity, wordMap, words);
+          for (const idx of hitIndexes) {
+            const rect = rectFromBbox(words[idx].bbox);
+            boxes.push({
+              x: Math.max(0, rect.x - 1),
+              y: Math.max(0, rect.y - 1),
+              w: rect.w + 2,
+              h: rect.h + 2,
+              categoryKey: String(entity.entity_group || "").toLowerCase(),
+              matchedWord: words[idx].text,
+              entityWord: entity.word,
+            });
+            debugTargets.push({
+              page: pageIndex + 1,
+              category: String(entity.entity_group || "").toLowerCase(),
+              matchedWord: words[idx].text,
+              entityWord: entity.word,
+              bbox: { x: Math.max(0, rect.x - 1), y: Math.max(0, rect.y - 1), w: rect.w + 2, h: rect.h + 2 },
+            });
+            rectCount += 1;
+          }
+        }
+        render.boxes = boxes;
+        renderPageBoxes(pageIndex);
+        pageSummaries.push({ page: pageIndex + 1, entity_count: entities.length, redaction_rect_count: rectCount });
+        console.group(`PDF text debug - page ${pageIndex + 1}`);
+        console.log("Extracted text (before redaction):", beforeText);
+        console.log("Extracted text (after redaction):", afterText);
+        console.groupEnd();
+      }
+      console.group("PDF OCR/Redaction debug");
+      console.log("Original OCR word bounding boxes:", debugOriginal);
+      console.log("Redaction target bounding boxes:", debugTargets);
+      console.table(debugOriginal.slice(0, 200));
+      console.table(debugTargets.slice(0, 200));
+      console.groupEnd();
+      return { allEntities, pageSummaries, debugOriginal, debugTargets };
+    }
+
+    fileInput.addEventListener("change", async (event) => {
+      const file = event.target.files?.[0];
+      if (!file) return;
+      pdfBytes = new Uint8Array(await file.arrayBuffer());
+      redactedPdfBytes = null;
+      latestEntities = [];
+      activeCategoryKey = "";
+      categoryShort.textContent = "Click a count to view detected words";
+      renderCategoryCounts(emptyCategoryCounts());
+      output.textContent = "";
+      downloadBtn.disabled = true;
+      updateProgress(0);
+      setStatus(`Loaded ${file.name}. Click Detect + Redact PDF.`);
+      try {
+        await renderPdfPreview(pdfBytes);
+      } catch (error) {
+        setStatus(`Error: ${error.message}`);
+      }
+      setStatus(`Loaded ${file.name}. Auto-starting redaction...`);
+      setTimeout(() => {
+        if (!runButton.disabled && pdfBytes) runButton.click();
+      }, 500);
+    });
+    runButton.addEventListener("click", async () => {
+      if (!pdfBytes) { setStatus("Upload a PDF first."); return; }
+      runButton.disabled = true;
+      downloadBtn.disabled = true;
+      updateProgress(0);
+      try {
+        await loadDependencies();
+        setStatus("Rendering PDF pages...");
+        updateProgress(25);
+        await renderPdfPreview(pdfBytes);
+        setStatus("Loading OCR worker...");
+        updateProgress(50);
+        const worker = await getWorker();
+        modelUnavailableReason = "";
+        setStatus("Detecting entities and redacting page images...");
+        updateProgress(75);
+        const { allEntities, pageSummaries, debugOriginal, debugTargets } = await redactRenderedPages(worker);
+        redactedPdfBytes = await buildPdfFromRenderedPages(pageRenders);
+        latestEntities = allEntities;
+        activeCategoryKey = "";
+        categoryShort.textContent = "Click a count to view detected words";
+        renderCategoryCounts(computeCategoryCounts(allEntities));
+        output.textContent = JSON.stringify({
+          pages: pageRenders.length,
+          entities: allEntities,
+          page_summaries: pageSummaries,
+          debug_original_bbox_count: debugOriginal.length,
+          debug_target_bbox_count: debugTargets.length,
+        }, null, 2);
+        updateProgress(100);
+        setStatus(`Done. Redacted PDF ready (${allEntities.length} entity hits).`);
+        downloadBtn.disabled = false;
+      } catch (error) {
+        console.error(error);
+        setStatus(`Error: ${error.message}`);
+      } finally {
+        runButton.disabled = false;
+      }
+    });
+    downloadBtn.addEventListener("click", () => {
+      if (!redactedPdfBytes) return;
+      const editedTargets = pageRenders.flatMap((render, index) =>
+        render.boxes.map((box) => ({
+          page: index + 1,
+          category: box.categoryKey || "unknown",
+          x: box.x,
+          y: box.y,
+          w: box.w,
+          h: box.h,
+          matchedWord: box.matchedWord || "",
+          entityWord: box.entityWord || "",
+        })),
+      );
+      console.group("PDF download debug");
+      console.log("Final edited redaction targets:", editedTargets);
+      console.table(editedTargets.slice(0, 300));
+      console.groupEnd();
+      const blob = new Blob([cloneBytes(redactedPdfBytes)], { type: "application/pdf" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "redacted.pdf";
+      a.click();
+      URL.revokeObjectURL(url);
+    });
+    categoryList.addEventListener("click", (event) => {
+      const item = event.target.closest(".category-item");
+      if (!item) return;
+      const key = item.dataset.key;
+      const config = CATEGORY_CONFIG.find((entry) => entry.key === key);
+      if (!config) return;
+      activeCategoryKey = key;
+      const words = wordsForCategory(latestEntities, key);
+      categoryShort.textContent = `${config.short}: ${words.length ? words.join(", ") : "none"}`;
+      for (const button of categoryList.querySelectorAll(".category-item")) {
+        button.classList.toggle("active", button.dataset.key === key);
+      }
+      renderAllBoxes();
+    });
+
+    previewWrap.addEventListener("pointerdown", (event) => {
+      const boxEl = event.target.closest(".redaction-box");
+      if (!boxEl) {
+        selectedBox = null;
+        renderAllBoxes();
+        return;
+      }
+      const pageIndex = Number(boxEl.dataset.pageIndex);
+      const boxIndex = Number(boxEl.dataset.boxIndex);
+      const render = pageRenders[pageIndex];
+      if (!render || !render.boxes[boxIndex]) return;
+      const mode = event.target.classList.contains("redaction-resize") ? "resize" : "drag";
+
+      selectedBox = { pageIndex, boxIndex };
+      interaction = {
+        mode,
+        pageIndex,
+        boxIndex,
+        startX: event.clientX,
+        startY: event.clientY,
+        original: { ...render.boxes[boxIndex] },
+      };
+      boxEl.setPointerCapture(event.pointerId);
+      renderAllBoxes();
+    });
+
+    previewWrap.addEventListener("pointermove", (event) => {
+      if (!interaction) return;
+      const render = pageRenders[interaction.pageIndex];
+      if (!render) return;
+      const dx = event.clientX - interaction.startX;
+      const dy = event.clientY - interaction.startY;
+      const next = { ...interaction.original };
+      if (interaction.mode === "resize") {
+        next.w = interaction.original.w + dx;
+        next.h = interaction.original.h + dy;
+      } else {
+        next.x = interaction.original.x + dx;
+        next.y = interaction.original.y + dy;
+      }
+      render.boxes[interaction.boxIndex] = clampBoxToCanvas(next, render.canvas);
+      renderPageBoxes(interaction.pageIndex);
+    });
+
+    previewWrap.addEventListener("pointerup", () => {
+      interaction = null;
+    });
+
+    previewWrap.addEventListener("pointercancel", () => {
+      interaction = null;
+    });
+
+    document.addEventListener("keydown", (event) => {
+      if (event.key !== "Delete" && event.key !== "Backspace") return;
+      const activeTag = document.activeElement?.tagName?.toLowerCase();
+      if (activeTag === "input" || activeTag === "textarea") return;
+      if (!selectedBox) return;
+      const render = pageRenders[selectedBox.pageIndex];
+      if (!render || !render.boxes[selectedBox.boxIndex]) return;
+      event.preventDefault();
+      render.boxes.splice(selectedBox.boxIndex, 1);
+      selectedBox = null;
+      renderAllBoxes();
+    });
+
+    renderCategoryCounts(emptyCategoryCounts());
+  </script>
+</body>
+</html>
+ 

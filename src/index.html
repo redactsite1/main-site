@@ -1,0 +1,842 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>WebGPU Privacy Redaction</title>
+  <link
+    rel="stylesheet"
+    href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css"
+  >
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: #ffffff;
+      --panel: #ffffff;
+      --text: #130000;
+      --muted: #5a3a00;
+      --accent: #ffe600;
+      --accent-2: #ff1f1f;
+      --border: #130000;
+    }
+    /* https://huggingface.co/blog/openai-privacy-filter-web-apps */
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: var(--bg);
+      color: var(--text);
+      font-family: "Arial Black", Arial, Helvetica, sans-serif;
+      padding: 32px;
+    }
+
+    main {
+      width: min(900px, 100%);
+      margin: 0 auto;
+      padding: 24px;
+      border: 1px solid var(--border);
+      border-radius: 0;
+      background: var(--panel);
+      box-shadow: 12px 12px 0 #ff1f1f;
+    }
+
+    h1 {
+      margin: 0 0 8px;
+      font-size: clamp(2.5rem, 7vw, 4.3rem);
+      line-height: 1.05;
+      letter-spacing: 0.02em;
+      text-transform: uppercase;
+    }
+
+    .mode-switcher {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin: 0 0 14px;
+    }
+
+    .mode-btn {
+      margin: 0;
+      border: 2px solid #130000;
+      border-radius: 0;
+      padding: 10px 14px;
+      background: #fff6b8;
+      color: #130000;
+      font: 800 0.85rem/1 Arial, Helvetica, sans-serif;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      box-shadow: 4px 4px 0 #130000;
+      cursor: default;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .mode-btn.active {
+      background: var(--accent);
+      box-shadow: 6px 6px 0 var(--accent-2);
+    }
+
+    p {
+      color: var(--muted);
+      line-height: 1.55;
+    }
+
+    textarea,
+    pre {
+      width: 100%;
+      border: 3px solid #130000;
+      border-radius: 0;
+      background: #fffdf5;
+      color: #130000;
+      font: 700 15px/1.6 Arial, Helvetica, sans-serif;
+      box-shadow: 8px 8px 0 var(--accent), 14px 14px 0 var(--accent-2);
+    }
+
+    textarea {
+      min-height: 120px;
+      padding: 14px;
+      resize: vertical;
+    }
+
+    button {
+      margin: 14px 0;
+      border: 2px solid #000;
+      border-radius: 0;
+      padding: 12px 18px;
+      background: var(--accent);
+      color: #000;
+      font-weight: 700;
+      cursor: pointer;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      box-shadow: 6px 6px 0 var(--accent-2);
+    }
+
+    button:disabled {
+      cursor: wait;
+      opacity: 0.65;
+    }
+
+    .offline-pill {
+      display: inline-block;
+      margin: 6px 0 12px;
+      padding: 8px 12px;
+      border: 2px solid #130000;
+      background: var(--accent);
+      color: #130000;
+      font-size: 0.9rem;
+      text-transform: uppercase;
+      box-shadow: 5px 5px 0 var(--accent-2);
+    }
+
+    pre {
+      min-height: 56px;
+      overflow: auto;
+      padding: 14px;
+      white-space: pre-wrap;
+    }
+
+    .redact-hit {
+      background: #ff1f1f;
+      color: #ffffff;
+      padding: 0 2px;
+      border-radius: 2px;
+    }
+
+    .redacted-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .copy-btn {
+      margin: 0;
+      padding: 8px 12px;
+      font-size: 0.78rem;
+      box-shadow: 4px 4px 0 var(--accent-2);
+    }
+
+    .status {
+      color: var(--muted);
+      min-height: 1.5em;
+      font-weight: 700;
+    }
+
+    .progress-wrap {
+      margin: 8px 0 18px;
+    }
+
+    .progress-label {
+      margin: 0 0 6px;
+      color: var(--text);
+      font: 700 13px/1.3 Consolas, Monaco, monospace;
+    }
+
+    .progress-track {
+      width: 100%;
+      height: 10px;
+      border-radius: 0;
+      background: #ffdede;
+      border: 1px solid var(--border);
+      overflow: hidden;
+    }
+
+    .progress-fill {
+      width: 0%;
+      height: 100%;
+      background: linear-gradient(90deg, #ffe600, #ff1f1f);
+      transition: width 260ms ease;
+    }
+
+    details {
+      margin-top: 20px;
+      border: 2px solid #130000;
+      background: #fff6b8;
+      box-shadow: 6px 6px 0 var(--accent-2);
+    }
+
+    summary {
+      cursor: pointer;
+      padding: 10px 12px;
+      font-weight: 700;
+      list-style: none;
+    }
+
+    summary::-webkit-details-marker {
+      display: none;
+    }
+
+    .raw-output-wrap {
+      padding: 0 12px 12px;
+    }
+
+    .workspace-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 250px;
+      gap: 16px;
+      align-items: start;
+    }
+
+    .category-panel {
+      border: 2px solid #130000;
+      background: #fff6b8;
+      box-shadow: 6px 6px 0 var(--accent-2);
+      padding: 10px;
+      position: sticky;
+      top: 10px;
+    }
+
+    .category-panel h3 {
+      margin: 0 0 8px;
+      font-size: 0.95rem;
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+    }
+
+    .category-list {
+      display: grid;
+      gap: 8px;
+    }
+
+    .category-item {
+      width: 100%;
+      border: 2px solid #130000;
+      background: #fffdf5;
+      color: #130000;
+      padding: 8px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font: 700 0.78rem/1.2 Arial, Helvetica, sans-serif;
+      cursor: pointer;
+      text-transform: uppercase;
+      margin: 0;
+      box-shadow: none;
+    }
+
+    .category-item.active {
+      background: var(--accent);
+      box-shadow: 4px 4px 0 var(--accent-2);
+    }
+
+    .category-short {
+      margin-top: 8px;
+      min-height: 1.2em;
+      color: #130000;
+      font: 800 0.78rem/1.2 Arial, Helvetica, sans-serif;
+      text-transform: uppercase;
+    }
+
+    .help-fab {
+      position: fixed;
+      right: 22px;
+      bottom: 22px;
+      width: 58px;
+      height: 58px;
+      border: 2px solid #130000;
+      border-radius: 50%;
+      background: var(--accent);
+      color: #130000;
+      font: 900 26px/1 Arial, Helvetica, sans-serif;
+      cursor: pointer;
+      box-shadow: 6px 6px 0 var(--accent-2);
+      z-index: 1000;
+    }
+
+    .help-modal[hidden] {
+      display: none;
+    }
+
+    .help-modal {
+      position: fixed;
+      inset: 0;
+      background: rgba(19, 0, 0, 0.45);
+      display: grid;
+      place-items: center;
+      z-index: 1001;
+      padding: 20px;
+    }
+
+    .help-card {
+      width: min(560px, 100%);
+      border: 3px solid #130000;
+      background: #fffdf5;
+      color: #130000;
+      box-shadow: 12px 12px 0 var(--accent-2);
+      padding: 18px 18px 14px;
+    }
+
+    .help-card h3 {
+      margin: 0 0 8px;
+      font-size: 1.35rem;
+      text-transform: uppercase;
+    }
+
+    .help-card p {
+      margin: 0 0 10px;
+      color: #130000;
+      font-family: Arial, Helvetica, sans-serif;
+      font-weight: 700;
+    }
+
+    .help-actions {
+      display: flex;
+      justify-content: flex-end;
+    }
+
+    .help-actions button {
+      margin: 0;
+    }
+
+    @media (max-width: 980px) {
+      .workspace-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .category-panel {
+        position: static;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <div class="mode-switcher" aria-label="Input mode switcher">
+      <button class="mode-btn active" type="button" aria-pressed="true"><i class="fa-solid fa-font" aria-hidden="true"></i> Text</button>
+      <button class="mode-btn" type="button" aria-pressed="false"><i class="fa-solid fa-file-pdf" aria-hidden="true"></i> PDF</button>
+      <button class="mode-btn" type="button" aria-pressed="false"><i class="fa-solid fa-image" aria-hidden="true"></i> Image</button>
+      <button class="mode-btn" type="button" aria-pressed="false"><i class="fa-solid fa-music" aria-hidden="true"></i> Sound</button>
+    </div>
+    <h2> 100% Offline Secure, No Data is stored in server, Just in your computer locally</h2>
+    <h1>WebGPU Privacy Redaction</h1>
+    <div class="offline-pill">Offline-first: works even without Wi-Fi after model cache</div>
+    <p>
+      Paste text, click redact, and sensitive details get replaced with safe tags like
+      <code>[PRIVATE_PERSON]</code> and <code>[PRIVATE_EMAIL]</code>. After the first load, it keeps working
+      from local cache for an offline-first flow.
+    </p>
+
+    <div class="workspace-grid">
+      <div>
+        <textarea id="input">Subject: Q2 Planning Follow-Up
+
+Hi Jordan,
+
+Thanks again for meeting earlier today. I wanted to follow up with the revised timeline for the Q2 rollout and confirm that the product launch is scheduled for September 18, 2026. For reference, the project file is listed under 4829-1037-5581. If anything changes on your side, feel free to reply here at maya.chen@example.com or call me at +1 (415) 555-0124.
+
+Best,
+
+Maya Chen</textarea>
+        <button id="run" type="button">Load Model and Redact</button>
+
+        <p id="status" class="status">Ready.</p>
+        <div class="progress-wrap" aria-live="polite">
+          <p id="progress-label" class="progress-label">Progress: 0%</p>
+          <div class="progress-track" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+            <div id="progress-fill" class="progress-fill"></div>
+          </div>
+        </div>
+
+        <div class="redacted-head">
+          <h2>Redacted Text</h2>
+          <button id="copy-redacted" class="copy-btn" type="button">Copy Redacted</button>
+        </div>
+        <pre id="redacted"></pre>
+        <p><br><br></p>
+        <details>
+          <summary>Raw Model Output (collapsed by default)</summary>
+          <div class="raw-output-wrap">
+            <pre id="output"></pre>
+          </div>
+        </details>
+      </div>
+      <aside class="category-panel" aria-label="Privacy category counters">
+        <h3>Detected counts</h3>
+        <div id="category-list" class="category-list"></div>
+        <div id="category-short" class="category-short">Click a count to view detected words</div>
+      </aside>
+    </div>
+  </main>
+
+  <button id="help-fab" class="help-fab" type="button" aria-label="Open info dialog">?</button>
+  <div id="help-modal" class="help-modal" hidden>
+    <div class="help-card" role="dialog" aria-modal="true" aria-labelledby="help-title">
+      <h3 id="help-title">What is this?</h3>
+      <p>
+        This tool redacts private information in text directly in your browser.
+        It is designed for quick masking before sharing notes, emails, or logs.
+      </p>
+      <p>
+        Need help or want changes? Contact: <a href="mailto:lseanlon@gmail.com">lseanlon@gmail.com</a>
+      </p>
+      <div class="help-actions">
+        <button id="close-help" type="button">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <script type="module">
+    import { pipeline } from "https://cdn.jsdelivr.net/npm/@huggingface/transformers";
+
+    const input = document.querySelector("#input");
+    const runButton = document.querySelector("#run");
+    const status = document.querySelector("#status");
+    const redacted = document.querySelector("#redacted");
+    const copyRedactedButton = document.querySelector("#copy-redacted");
+    const output = document.querySelector("#output");
+    const progressLabel = document.querySelector("#progress-label");
+    const progressFill = document.querySelector("#progress-fill");
+    const progressTrack = document.querySelector(".progress-track");
+    const categoryList = document.querySelector("#category-list");
+    const categoryShort = document.querySelector("#category-short");
+    const helpFab = document.querySelector("#help-fab");
+    const helpModal = document.querySelector("#help-modal");
+    const closeHelp = document.querySelector("#close-help");
+
+    let classifierPromise;
+    let activeCategoryKey = "";
+    let latestEntities = [];
+    let lastInputText = "";
+    let lastRedactedPlain = "";
+
+    const CATEGORY_CONFIG = [
+      { key: "private_person", name: "Person", short: "PER" },
+      { key: "private_email", name: "Email", short: "EML" },
+      { key: "private_date", name: "Date", short: "DAT" },
+      { key: "private_address", name: "Address", short: "ADR" },
+      { key: "account_number", name: "Account", short: "ACC" },
+      { key: "private_url", name: "URL", short: "URL" },
+      { key: "private_phone", name: "Phone", short: "PHN" },
+      { key: "sec", name: "Secret", short: "SEC" },
+    ];
+
+    function setStatus(message) {
+      status.textContent = message;
+      console.log(message);
+    }
+
+    function updateProgress(percent) {
+      const clamped = Math.max(0, Math.min(100, percent));
+      progressLabel.textContent = `Progress: ${clamped}%`;
+      progressFill.style.width = `${clamped}%`;
+      progressTrack.setAttribute("aria-valuenow", String(clamped));
+    }
+
+    function emptyCategoryCounts() {
+      return Object.fromEntries(CATEGORY_CONFIG.map((item) => [item.key, 0]));
+    }
+
+    function renderCategoryCounts(counts) {
+      categoryList.innerHTML = "";
+      for (const item of CATEGORY_CONFIG) {
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = `category-item${activeCategoryKey === item.key ? " active" : ""}`;
+        button.dataset.key = item.key;
+        button.innerHTML = `<span>${item.name}</span><span>${counts[item.key] ?? 0}</span>`;
+        categoryList.appendChild(button);
+      }
+    }
+
+    function computeCategoryCounts(entities) {
+      const counts = emptyCategoryCounts();
+      for (const entity of entities) {
+        const key = String(entity.entity_group || "").toLowerCase();
+        if (Object.hasOwn(counts, key)) counts[key] += 1;
+      }
+      return counts;
+    }
+
+    function wordsForCategory(entities, key) {
+      const words = entities
+        .filter((entity) => String(entity.entity_group || "").toLowerCase() === key)
+        .map((entity) => String(entity.word || "").trim())
+        .filter((word) => word.length > 0);
+      return [...new Set(words)];
+    }
+
+    function openHelpModal() {
+      helpModal.hidden = false;
+    }
+
+    function closeHelpModal() {
+      helpModal.hidden = true;
+    }
+
+    const NAME_LABELS = ["recipient name ref", "beneficiary name", "recipient name", "customer name", "name"];
+
+    function isAsciiLetterCode(cp) {
+      return (cp >= 65 && cp <= 90) || (cp >= 97 && cp <= 122);
+    }
+    function isWhitespaceCode(cp) {
+      return cp === 32 || cp === 9 || cp === 10 || cp === 13;
+    }
+    function isNameInnerCode(cp) {
+      return isAsciiLetterCode(cp) || cp === 39 || cp === 45 || cp === 46;
+    }
+    function isGapOnlyWhitespace(gap) {
+      for (let i = 0; i < gap.length; i++) {
+        if (!isWhitespaceCode(gap.charCodeAt(i))) return false;
+      }
+      return true;
+    }
+    function collapseInternalSpaces(s) {
+      let out = "";
+      let prevSpace = false;
+      for (let i = 0; i < s.length; i++) {
+        const cp = s.charCodeAt(i);
+        if (isWhitespaceCode(cp)) {
+          if (!prevSpace && out.length > 0) {
+            out += " ";
+            prevSpace = true;
+          }
+        } else {
+          out += s[i];
+          prevSpace = false;
+        }
+      }
+      return out.trim();
+    }
+    function wordBoundaryBefore(text, index) {
+      if (index <= 0) return true;
+      const cp = text.charCodeAt(index - 1);
+      return !isAsciiLetterCode(cp) && !(cp >= 48 && cp <= 57);
+    }
+    /** Names after receipt-style labels (e.g. "Recipient Name Ref : SELENA ADAMS") without RegExp. */
+    function heuristicPersonEntities(text) {
+      const entities = [];
+      const lower = text.toLowerCase();
+      for (let i = 0; i < text.length; i++) {
+        let best = "";
+        for (const label of NAME_LABELS) {
+          if (label.length <= best.length) continue;
+          if (lower.startsWith(label, i)) best = label;
+        }
+        if (!best || !wordBoundaryBefore(text, i)) continue;
+        let j = i + best.length;
+        while (j < text.length && isWhitespaceCode(text.charCodeAt(j))) j++;
+        if (j >= text.length || text[j] !== ":") continue;
+        j++;
+        while (j < text.length && isWhitespaceCode(text.charCodeAt(j))) j++;
+        const nameStart = j;
+        let nameEnd = nameStart;
+        let wordCount = 0;
+        while (j < text.length) {
+          const cp = text.charCodeAt(j);
+          if (isWhitespaceCode(cp)) {
+            while (j < text.length && isWhitespaceCode(text.charCodeAt(j))) j++;
+            if (j < text.length && isNameInnerCode(text.charCodeAt(j))) continue;
+            break;
+          }
+          if (!isNameInnerCode(cp)) break;
+          const w0 = j;
+          while (j < text.length && isNameInnerCode(text.charCodeAt(j))) j++;
+          wordCount++;
+          nameEnd = j;
+        }
+        if (wordCount < 2) continue;
+        const captured = collapseInternalSpaces(text.slice(nameStart, nameEnd));
+        if (!captured.includes(" ")) continue;
+        entities.push({
+          entity_group: "private_person",
+          score: 1,
+          word: captured,
+          start: nameStart,
+          end: nameEnd,
+        });
+        i = nameEnd - 1;
+      }
+      return entities;
+    }
+
+    function mergeEntityLists(modelEntities, extra) {
+      const out = [...modelEntities];
+      for (const e of extra) {
+        const dup = out.some((o) => {
+          const os = o.start;
+          const oe = o.end;
+          const es = e.start;
+          const ee = e.end;
+          if (Number.isInteger(os) && Number.isInteger(oe) && Number.isInteger(es) && Number.isInteger(ee)) {
+            return es >= os && ee <= oe;
+          }
+          return String(o.word || "").trim().toLowerCase() === String(e.word || "").trim().toLowerCase();
+        });
+        if (!dup) out.push(e);
+      }
+      return out;
+    }
+
+    async function getClassifier() {
+      if (!("gpu" in navigator)) {
+        throw new Error("WebGPU is not available in this browser. Try Chrome or Edge with WebGPU enabled.");
+      }
+
+      classifierPromise ??= pipeline(
+        "token-classification",
+        "openai/privacy-filter",
+        { device: "webgpu", dtype: "q4" },
+      );
+
+      return classifierPromise;
+    }
+
+    function bracketLabel(entity) {
+      const raw = entity.entity_group ?? entity.entity ?? "PRIVATE";
+      let s = String(raw).trim();
+      let out = "";
+      for (let i = 0; i < s.length; i++) {
+        const ch = s[i];
+        const cp = s.charCodeAt(i);
+        if (ch === "-" || isWhitespaceCode(cp)) out += "_";
+        else out += ch;
+      }
+      let collapsed = "";
+      for (let i = 0; i < out.length; i++) {
+        if (out[i] === "_" && collapsed.length > 0 && collapsed[collapsed.length - 1] === "_") continue;
+        collapsed += out[i];
+      }
+      return `[${collapsed.toUpperCase()}]`;
+    }
+
+    function spanForEntity(text, entity) {
+      if (
+        Number.isInteger(entity.start) &&
+        Number.isInteger(entity.end) &&
+        entity.end > entity.start
+      ) {
+        return {
+          start: entity.start,
+          end: entity.end,
+          label: bracketLabel(entity),
+          categoryKey: String(entity.entity_group || entity.entity || "").toLowerCase(),
+        };
+      }
+
+      const word = entity.word;
+      if (typeof word !== "string" || word.length === 0) return null;
+
+      let idx = text.indexOf(word);
+      if (idx !== -1) {
+        return {
+          start: idx,
+          end: idx + word.length,
+          label: bracketLabel(entity),
+          categoryKey: String(entity.entity_group || entity.entity || "").toLowerCase(),
+        };
+      }
+
+      const trimmed = word.trim();
+      if (trimmed.length > 0) {
+        idx = text.indexOf(trimmed);
+        if (idx !== -1) {
+          return {
+            start: idx,
+            end: idx + trimmed.length,
+            label: bracketLabel(entity),
+            categoryKey: String(entity.entity_group || entity.entity || "").toLowerCase(),
+          };
+        }
+      }
+
+      return null;
+    }
+
+    function mergeOverlappingSpans(spans) {
+      if (spans.length === 0) return [];
+      const sorted = spans.slice().sort((a, b) => a.start - b.start);
+      const merged = [{ ...sorted[0] }];
+      for (let i = 1; i < sorted.length; i++) {
+        const cur = sorted[i];
+        const last = merged[merged.length - 1];
+        if (cur.start <= last.end) {
+          last.end = Math.max(last.end, cur.end);
+        } else {
+          merged.push({ ...cur });
+        }
+      }
+      return merged;
+    }
+
+    /** Join spans with the same label when only whitespace sits between them (e.g. "Maya" + " Chen"). */
+    function mergeAdjacentSameLabel(text, spans) {
+      if (spans.length === 0) return [];
+      const sorted = spans.slice().sort((a, b) => a.start - b.start);
+      const out = [{ ...sorted[0] }];
+      for (let i = 1; i < sorted.length; i++) {
+        const cur = sorted[i];
+        const prev = out[out.length - 1];
+        const gap = text.slice(prev.end, cur.start);
+        if (prev.label === cur.label && isGapOnlyWhitespace(gap)) {
+          prev.end = cur.end;
+        } else {
+          out.push({ ...cur });
+        }
+      }
+      return out;
+    }
+
+    function getRedactedOutputs(text, entities) {
+      const escaped = (value) => value
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;");
+
+      const spans = [];
+      for (const entity of entities) {
+        const span = spanForEntity(text, entity);
+        if (span) spans.push(span);
+      }
+
+      const merged = mergeAdjacentSameLabel(text, mergeOverlappingSpans(spans)).sort(
+        (a, b) => a.start - b.start,
+      );
+
+      let cursor = 0;
+      const htmlParts = [];
+      const plainParts = [];
+      for (const { start, end, label, categoryKey } of merged) {
+        const leftChunk = text.slice(cursor, start);
+        htmlParts.push(escaped(leftChunk));
+        plainParts.push(leftChunk);
+        const highlighted = activeCategoryKey && categoryKey === activeCategoryKey;
+        const safeLabel = escaped(label);
+        const spacedLabel = ` ${safeLabel} `;
+        htmlParts.push(highlighted ? `<mark class="redact-hit">${spacedLabel}</mark>` : spacedLabel);
+        plainParts.push(` ${label} `);
+        cursor = end;
+      }
+      const tailChunk = text.slice(cursor);
+      htmlParts.push(escaped(tailChunk));
+      plainParts.push(tailChunk);
+      return { html: htmlParts.join(""), plain: plainParts.join("") };
+    }
+
+    runButton.addEventListener("click", async () => {
+      runButton.disabled = true;
+      output.textContent = "";
+      redacted.textContent = "";
+      updateProgress(0);
+
+      try {
+        setStatus("Starting...");
+        updateProgress(25);
+        setStatus("Loading WebGPU model. The first run may download model files...");
+        const classifier = await getClassifier();
+
+        updateProgress(50);
+        setStatus("Running privacy filter...");
+        const text = input.value;
+        lastInputText = text;
+        updateProgress(75);
+        const modelEntities = await classifier(text, { aggregation_strategy: "simple" });
+        const entities = mergeEntityLists(modelEntities, heuristicPersonEntities(text));
+        latestEntities = entities;
+
+        const rendered = getRedactedOutputs(text, entities);
+        redacted.innerHTML = rendered.html;
+        lastRedactedPlain = rendered.plain;
+        output.textContent = JSON.stringify(entities, null, 2);
+        activeCategoryKey = "";
+        categoryShort.textContent = "Click a count to view detected words";
+        renderCategoryCounts(computeCategoryCounts(entities));
+        updateProgress(100);
+        setStatus("Done.");
+      } catch (error) {
+        console.error(error);
+        setStatus(`Error: ${error.message}`);
+      } finally {
+        runButton.disabled = false;
+      }
+    });
+
+    helpFab.addEventListener("click", openHelpModal);
+    closeHelp.addEventListener("click", closeHelpModal);
+    categoryList.addEventListener("click", (event) => {
+      const item = event.target.closest(".category-item");
+      if (!item) return;
+      const key = item.dataset.key;
+      const config = CATEGORY_CONFIG.find((entry) => entry.key === key);
+      if (!config) return;
+      activeCategoryKey = key;
+      const words = wordsForCategory(latestEntities, key);
+      const wordPreview = words.length ? words.join(", ") : "none";
+      categoryShort.textContent = `${config.short}: ${wordPreview}`;
+      if (lastInputText) {
+        const rendered = getRedactedOutputs(lastInputText, latestEntities);
+        redacted.innerHTML = rendered.html;
+        lastRedactedPlain = rendered.plain;
+      }
+      for (const button of categoryList.querySelectorAll(".category-item")) {
+        button.classList.toggle("active", button.dataset.key === key);
+      }
+    });
+    copyRedactedButton.addEventListener("click", async () => {
+      const value = lastRedactedPlain || redacted.textContent || "";
+      if (!value.trim()) {
+        setStatus("Nothing to copy yet.");
+        return;
+      }
+      try {
+        await navigator.clipboard.writeText(value);
+        setStatus("Redacted text copied to clipboard.");
+      } catch (error) {
+        console.error(error);
+        setStatus("Copy failed. Please copy manually.");
+      }
+    });
+    helpModal.addEventListener("click", (event) => {
+      if (event.target === helpModal) closeHelpModal();
+    });
+    document.addEventListener("keydown", (event) => {
+      if (event.key === "Escape" && !helpModal.hidden) closeHelpModal();
+    });
+    renderCategoryCounts(emptyCategoryCounts());
+  </script>
+</body>
+</html>
