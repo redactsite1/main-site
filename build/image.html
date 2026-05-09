@@ -3,21 +3,51 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Image Privacy Redaction</title>
+  <title>REDACT.SITE - FREE privacy-first redaction for text, images, audio, and PDFs</title>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
   <style>
     :root {
       color-scheme: light;
-      --bg: #ffffff;
+      --bg: #fffdf0;
       --panel: #ffffff;
       --text: #130000;
       --muted: #5a3a00;
       --accent: #ffe600;
-      --accent-2: #ff1f1f;
+      --accent-2: #f18e8a;
       --border: #130000;
+      --radius: 10px;
+      --shadow-soft: 0 12px 24px rgba(19, 0, 0, 0.15);
+      --shadow-hard: 5.8px 5.8px 0 var(--accent-2);
+      --card-bg: #fffdf5;
+      --overlay: rgba(19, 0, 0, 0.45);
+    }
+    :root[data-theme="dark"] {
+      color-scheme: dark;
+      --bg: #120012;
+      --panel: #1a1024;
+      --text: #f8f7ff;
+      --muted: #d3c8ea;
+      --accent: #14bdb7;
+      --accent-2: #661055;
+      --border: #f8f7ff;
+      --shadow-soft: 0 14px 30px rgba(0, 0, 0, 0.45);
+      --shadow-hard: 5.8px 5.8px 0 var(--accent-2);
+      --card-bg: #221532;
+      --overlay: rgba(0, 0, 0, 0.6);
     }
 
     * { box-sizing: border-box; }
+    .seo-hidden {
+      position: absolute !important;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      white-space: nowrap;
+      border: 0;
+    }
     body {
       margin: 0;
       min-height: 100vh;
@@ -33,7 +63,8 @@
       padding: 22px;
       border: 1px solid var(--border);
       background: var(--panel);
-      box-shadow: 12px 12px 0 var(--accent-2);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow-hard);
     }
 
     h1 {
@@ -43,6 +74,67 @@
       text-transform: uppercase;
     }
 
+    .site-banner {
+      border: 3px solid var(--border);
+      border-radius: var(--radius);
+      background: var(--accent);
+      box-shadow: var(--shadow-hard);
+      padding: 14px 16px 12px;
+      margin: 0 0 22px;
+    }
+
+    .site-banner-title {
+      margin: 0;
+      color: var(--text);
+      font: 900 clamp(2rem, 8vw, 4.6rem)/1 "Arial Black", Arial, Helvetica, sans-serif;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      text-shadow: 2px 2px 0 #ffffff, 5px 5px 0 var(--accent-2);
+    }
+    .site-banner-title .site-suffix {
+      font-size: 0.45em;
+      letter-spacing: 0.08em;
+      vertical-align: super;
+      margin-left: 2px;
+    }
+    .brand-a-wrap {
+      position: relative;
+      display: inline-block;
+    }
+    .brand-a-redact {
+      position: absolute;
+      left: -0.04em;
+      right: -0.04em;
+      top: 46%;
+      height: 0.22em;
+      border-radius: 0.08em;
+      background: #ff1f1f;
+      transform: scaleX(0);
+      transform-origin: left;
+      animation: brandARedact 2.8s ease-in-out infinite;
+    }
+    @keyframes brandARedact {
+      0%, 22% { transform: scaleX(0); }
+      36%, 78% { transform: scaleX(1); }
+      100% { transform: scaleX(0); }
+    }
+
+    .site-banner-sub {
+      margin: 10px 0 0;
+      color: var(--text);
+      font: 800 clamp(0.8rem, 2vw, 1rem)/1.4 Arial, Helvetica, sans-serif;
+      /* text-transform: uppercase; */
+      letter-spacing: 0.03em;
+    }
+
+    .site-banner-foot {
+      margin: 8px 0 0;
+      color: var(--muted);
+      font: 700 0.62rem/1.2 Arial, Helvetica, sans-serif;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
     p {
       margin: 0 0 10px;
       color: var(--muted);
@@ -50,36 +142,109 @@
       font-weight: 700;
     }
 
-    .mode-switcher { display: flex; gap: 10px; margin-bottom: 12px; flex-wrap: wrap; }
+    .mode-switcher { display: flex; gap: 10px; margin-bottom: 18px; flex-wrap: wrap; }
     .mode-btn {
-      border: 2px solid #130000;
+      border: 2px solid var(--border);
+      border-radius: 999px;
       padding: 10px 14px;
       background: #fff6b8;
-      color: #130000;
+      color: var(--text);
       font: 800 0.85rem/1 Arial, Helvetica, sans-serif;
       text-transform: uppercase;
-      box-shadow: 4px 4px 0 #130000;
+      box-shadow: 4px 4px 0 var(--border);
       display: inline-flex;
       align-items: center;
       gap: 8px;
       margin: 0;
     }
     .mode-btn.active { background: var(--accent); box-shadow: 6px 6px 0 var(--accent-2); }
-    .mode-link { color: inherit; text-decoration: none; cursor: pointer; }
+    .mode-link { 
+      background: var(--accent); color: inherit; text-decoration: none; cursor: pointer; }
+    .theme-toggle { margin-left: auto; background: var(--accent); }
+    .section-block {
+      margin-top: 24px;
+      background: var(--card-bg);
+      padding: 14px;
+      border: 2px solid var(--border);
+      border-radius: 12px;
+      /* background: #fffdf5; */
+      box-shadow: 6px 6px 0 var(--accent-2);
+    }
+    .section-title {
+      margin: 0 0 10px;
+      color: var(--text);
+      font: 900 clamp(1.25rem, 2.8vw, 1.8rem)/1.1 "Arial Black", Arial, Helvetica, sans-serif;
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+    }
+    .section-title-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 10px;
+    }
+    .small-action-btn {
+      margin: 0;
+      padding: 8px 10px;
+      font: 800 0.68rem/1 Arial, Helvetica, sans-serif;
+      letter-spacing: 0.03em;
+      border-radius: 10px;
+      box-shadow: 4px 4px 0 var(--accent-2);
+      white-space: nowrap;
+    }
+    .help-fab {
+      position: fixed;
+      right: 22px;
+      bottom: 22px;
+      width: 58px;
+      height: 58px;
+      border: 2px solid var(--border);
+      border-radius: 50%;
+      background: var(--accent);
+      color: var(--text);
+      font: 900 26px/1 Arial, Helvetica, sans-serif;
+      cursor: pointer;
+      box-shadow: var(--shadow-hard);
+      z-index: 1000;
+    }
+    .help-modal[hidden] { display: none; }
+    .help-modal {
+      position: fixed;
+      inset: 0;
+      background: var(--overlay);
+      display: grid;
+      place-items: center;
+      z-index: 1001;
+      padding: 20px;
+    }
+    .help-card {
+      width: min(560px, 100%);
+      max-height: min(82vh, 760px);
+      border: 3px solid var(--border);
+      border-radius: var(--radius);
+      background: var(--card-bg);
+      color: var(--text);
+      box-shadow: var(--shadow-hard);
+      padding: 18px 18px 14px;
+      overflow-y: auto;
+    }
+    .help-actions { display: flex; justify-content: flex-end; }
 
     .toolbar {
       display: flex;
       gap: 10px;
       align-items: center;
       flex-wrap: wrap;
-      margin: 14px 0;
+      margin: 16px 0 20px;
     }
 
     button, .upload-label {
-      border: 2px solid #000;
+      border: 2px solid var(--border);
+      border-radius: 12px;
       padding: 11px 16px;
       background: var(--accent);
-      color: #000;
+      color: var(--text);
       font: 800 0.86rem/1 Arial, Helvetica, sans-serif;
       text-transform: uppercase;
       letter-spacing: 0.04em;
@@ -95,22 +260,24 @@
     #file-input { display: none; }
 
     .color-picker-wrap {
-      display: inline-flex;
+      /* display: inline-flex; */
+      display:none;
       align-items: center;
       gap: 8px;
-      border: 2px solid #130000;
+      border: 2px solid var(--border);
+      border-radius: 12px;
       padding: 8px 10px;
-      background: #fff6b8;
-      box-shadow: 4px 4px 0 #130000;
+      background: var(--card-bg);
+      box-shadow: 4px 4px 0 var(--accent-2);
       font: 800 0.8rem/1 Arial, Helvetica, sans-serif;
       text-transform: uppercase;
-      color: #130000;
+      color: var(--text);
     }
 
     #redaction-color {
       width: 34px;
       height: 28px;
-      border: 1px solid #130000;
+      border: 1px solid var(--border);
       padding: 0;
       background: transparent;
       cursor: pointer;
@@ -118,25 +285,160 @@
 
     .offline-pill {
       display: inline-block;
-      margin-bottom: 8px;
+      margin-bottom: 16px;
       padding: 8px 12px;
-      border: 2px solid #130000;
+      border: 2px solid var(--border);
+      border-radius: 999px;
       background: var(--accent);
-      color: #130000;
+      color: var(--text);
       font-size: 0.9rem;
       text-transform: uppercase;
       box-shadow: 5px 5px 0 var(--accent-2);
     }
+    .how-anim {
+      scale: .7;
+      margin: 0 0 14px;
+      padding: 12px;
+      border: 2px solid var(--border);
+      border-radius: 10px;
+      background: var(--panel);
+      box-shadow: 4px 4px 0 var(--accent-2);
+      max-width: 620px;
+    max-width: 300px;
+    height: 350px;
+    }
+    .how-doc-line {
+      position: relative;
+      margin: 8px 0;
+      padding: 7px 10px;
+      border: 1px solid rgba(0, 0, 0, 0.16);
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.7);
+      font: 700 0.78rem/1.3 Arial, Helvetica, sans-serif;
+      color: var(--text);
+      letter-spacing: 0.01em;
+      overflow: hidden;
+      white-space: nowrap;
+      text-overflow: ellipsis;
+    }
+    .how-doc-redact {
+      position: absolute;
+      top: 4px;
+      bottom: 4px;
+      border-radius: 6px;
+      background: #000000;
+      transform: scaleX(0);
+      transform-origin: left;
+      animation: redactReveal 3.2s infinite;
+    }
+    .how-doc-redact.delay-2 { animation-delay: 0.5s; }
+    .how-doc-redact.delay-3 { animation-delay: 1s; }
+    .how-face-row {
+      margin-top: 10px;
+      padding: 8px 10px;
+      border: 1px dashed rgba(0, 0, 0, 0.2);
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.5);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .how-face-label {
+      font: 700 0.68rem/1.2 Arial, Helvetica, sans-serif;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+      min-width: 88px;
+    }
+    .how-face {
+      position: relative;
+      width: 54px;
+      height: 66px;
+      border-radius: 28px 28px 24px 24px;
+      background: rgba(0, 0, 0, 0.35);
+      border: 1px solid rgba(0, 0, 0, 0.5);
+      box-shadow: inset 0 -8px 0 rgba(0, 0, 0, 0.08);
+      flex: 0 0 auto;
+    }
+    .how-face::before {
+      content: "";
+      position: absolute;
+      left: 50%;
+      bottom: -13px;
+      width: 38px;
+      height: 14px;
+      transform: translateX(-50%);
+      border-radius: 12px 12px 0 0;
+      background: rgba(0, 0, 0, 0.28);
+    }
+    .how-eye-censor {
+      position: absolute;
+      top: 23px;
+      width: 14px;
+      height: 7px;
+      border-radius: 4px;
+      background: #000;
+      transform: scaleX(0);
+      transform-origin: left;
+      animation: eyeCensorReveal 3.2s infinite;
+    }
+    .how-eye-censor.left { left: 11px; animation-delay: 0.55s; }
+    .how-eye-censor.right { right: 11px; animation-delay: 0.7s; }
+    .how-filler-row {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+      margin-top: 10px;
+    }
+    .how-filler-chip {
+      height: 8px;
+      border-radius: 999px;
+      background: linear-gradient(90deg, rgba(0, 0, 0, 0.14), rgba(0, 0, 0, 0.08));
+      animation: fillerPulse 1.8s ease-in-out infinite;
+    }
+    .how-filler-chip.w1 { width: 54px; }
+    .how-filler-chip.w2 { width: 76px; animation-delay: 0.18s; }
+    .how-filler-chip.w3 { width: 42px; animation-delay: 0.32s; }
+    .how-filler-chip.w4 { width: 64px; animation-delay: 0.46s; }
+    @keyframes redactReveal {
+      0%, 28% { transform: scaleX(0); }
+      42%, 100% { transform: scaleX(1); }
+    }
+    @keyframes eyeCensorReveal {
+      0%, 30% { transform: scaleX(0); }
+      45%, 100% { transform: scaleX(1); }
+    }
+    @keyframes fillerPulse {
+      0%, 100% { opacity: 0.35; }
+      50% { opacity: 0.8; }
+    }
 
-    .status { margin-top: 8px; min-height: 1.4em; color: var(--muted); }
-    .progress-wrap { margin: 8px 0 14px; }
-    .progress-wrap.is-hidden { display: none; }
+    .loading-overlay[hidden] { display: none; }
+    .loading-overlay {
+      position: fixed; inset: 0; background: var(--overlay);
+      display: grid; place-items: center; z-index: 1004; padding: 20px;
+    }
+    .loading-card {
+      width: min(520px, 100%); border: 3px solid var(--border); border-radius: var(--radius); background: var(--card-bg);
+      box-shadow: var(--shadow-hard); padding: 16px;
+    }
+    .loading-status {
+      margin: 0 0 8px; color: var(--text); font: 800 0.9rem/1.35 Arial, Helvetica, sans-serif;
+      text-transform: uppercase;
+    }
+    .loading-tip {
+      margin: 0 0 8px;
+      color: var(--muted);
+      font: 700 0.75rem/1.35 Arial, Helvetica, sans-serif;
+      text-transform: none;
+    }
+    .progress-wrap { margin: 0; }
     .progress-label { margin: 0 0 6px; color: var(--text); font: 700 13px/1.3 Consolas, monospace; }
     .progress-track {
       width: 100%; height: 10px; background: #ffdede; border: 1px solid var(--border); overflow: hidden;
     }
     .progress-fill {
-      width: 0%; height: 100%; background: linear-gradient(90deg, #ffe600, #ff1f1f); transition: width 240ms ease;
+      width: 0%; height: 100%; background: linear-gradient(90deg, var(--accent), var(--accent-2)); transition: width 240ms ease;
     }
 
     .gallery {
@@ -146,21 +448,23 @@
       margin: 8px 0 0;
     }
     .gallery-card {
-      border: 2px solid #130000;
-      background: #fffdf5;
+      border: 2px solid var(--border);
+      border-radius: 12px;
+      background: var(--card-bg);
       box-shadow: 4px 4px 0 var(--accent-2);
       padding: 8px;
       cursor: pointer;
     }
-    .gallery-card img { width: 100%; height: 120px; object-fit: cover; display: block; border: 1px solid #130000; }
-    .gallery-card span { display: block; margin-top: 6px; font: 700 12px/1.2 Arial, sans-serif; color: #130000; }
+    .gallery-card img { width: 100%; height: 120px; object-fit: cover; display: block; border: 1px solid var(--border); border-radius: 8px; }
+    .gallery-card span { display: block; margin-top: 6px; font: 700 12px/1.2 Arial, sans-serif; color: var(--text); }
 
     .sample-panel {
-      border: 2px solid #130000;
-      background: #fff6b8;
-      box-shadow: 6px 6px 0 var(--accent-2);
+      /* border: 2px solid var(--border); */
+      border-radius: 12px;
+      background: var(--card-bg);
+      /* box-shadow: 6px 6px 0 var(--accent-2); */
       padding: 8px;
-      margin: 10px 0 14px;
+      margin: 12px 0 18px;
     }
 
     .sample-panel-head {
@@ -172,27 +476,28 @@
 
     .sample-preview-mini {
       display: inline-flex;
-      opacity: 0.1;
+      opacity: 0.0;
       width: 1px;height: 1px;
       align-items: center;
       gap: 8px;
       font: 700 12px/1.2 Arial, sans-serif;
-      color: #130000;
+      color: var(--text);
     }
 
     .sample-preview-mini img {
       width: 44px;
       height: 32px;
       object-fit: cover;
-      border: 1px solid #130000;
+      border: 1px solid var(--border);
       background: #fff;
     }
 
     .sample-toggle-btn {
-      border: 2px solid #130000;
-      background: #fffdf5;
-      box-shadow: 4px 4px 0 #130000;
-      color: #130000;
+      border: 2px solid var(--border);
+      border-radius: 10px;
+      background: var(--panel);
+      box-shadow: 4px 4px 0 var(--accent-2);
+      color: var(--text);
       padding: 7px 10px;
       font: 800 0.72rem/1 Arial, Helvetica, sans-serif;
       text-transform: uppercase;
@@ -212,15 +517,17 @@
     .workspace-grid {
       display: grid;
       grid-template-columns: minmax(0, 1fr) 250px;
-      gap: 16px;
+      gap: 24px;
       align-items: start;
+      margin-top: 18px;
     }
 
     .category-panel {
-      border: 2px solid #130000;
-      background: #fff6b8;
+      border: 2px solid var(--border);
+      border-radius: 12px;
+      background: var(--card-bg);
       box-shadow: 6px 6px 0 var(--accent-2);
-      padding: 10px;
+      padding: 14px;
       position: sticky;
       top: 10px;
     }
@@ -239,9 +546,10 @@
 
     .category-item {
       width: 100%;
-      border: 2px solid #130000;
-      background: #fffdf5;
-      color: #130000;
+      border: 2px solid var(--border);
+      border-radius: 10px;
+      background: var(--panel);
+      color: var(--text);
       padding: 8px;
       display: flex;
       justify-content: space-between;
@@ -259,18 +567,20 @@
     .category-short {
       margin-top: 8px;
       min-height: 1.2em;
-      color: #130000;
+      color: var(--text);
       font: 800 0.78rem/1.2 Arial, Helvetica, sans-serif;
       text-transform: uppercase;
     }
 
     .canvas-wrap {
-      border: 3px solid #130000;
-      background: #fffdf5;
+      border: 3px solid var(--border);
+      border-radius: 12px;
+      background: var(--card-bg);
       box-shadow: 8px 8px 0 var(--accent), 14px 14px 0 var(--accent-2);
       padding: 10px;
       overflow: auto;
       text-align: center;
+      margin-bottom: 18px;
     }
 
     .canvas-stage {
@@ -284,7 +594,7 @@
       width: auto;
       height: auto;
       max-width: none;
-      border: 1px solid #130000;
+      border: 1px solid var(--border);
       display: block;
       margin: 0 auto;
       background: white;
@@ -301,7 +611,7 @@
       pointer-events: auto;
       cursor: grab;
       border: 2px solid #ffffff;
-      outline: 1px solid #130000;
+      outline: 1px solid var(--border);
     }
 
     .redaction-box.selected {
@@ -318,21 +628,22 @@
       height: 12px;
       right: -6px;
       bottom: -6px;
-      background: #ffffff;
-      border: 1px solid #130000;
+      background: var(--panel);
+      border: 1px solid var(--border);
       cursor: nwse-resize;
     }
 
     details {
       margin-top: 16px;
-      border: 2px solid #130000;
-      background: #fff6b8;
+      border: 2px solid var(--border);
+      border-radius: 12px;
+      background: var(--card-bg);
       box-shadow: 6px 6px 0 var(--accent-2);
     }
     summary { cursor: pointer; padding: 10px 12px; font-weight: 700; }
     pre {
       margin: 0; padding: 12px; white-space: pre-wrap; overflow: auto;
-      font: 700 13px/1.5 Arial, Helvetica, sans-serif; color: #130000;
+      font: 700 13px/1.5 Arial, Helvetica, sans-serif; color: var(--text);
     }
 
     @media (max-width: 980px) {
@@ -345,6 +656,13 @@
       }
     }
   </style>
+  <!-- Google Tag Manager -->
+  <script>(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
+  new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
+  j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
+  'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
+  })(window,document,'script','dataLayer','GTM-WTTD6SZF');</script>
+  <!-- End Google Tag Manager -->
 </head>
 <body>
   <main>
@@ -353,43 +671,71 @@
       <a class="mode-btn mode-link" href="/pdf.html"><i class="fa-solid fa-file-pdf"></i> PDF</a>
       <a class="mode-btn mode-link active" href="/image.html" aria-current="page"><i class="fa-solid fa-image"></i> Image</a>
       <a class="mode-btn mode-link" href="/insound/index.html"><i class="fa-solid fa-music"></i> Sound</a>
+      <button id="theme-toggle" class="mode-btn theme-toggle" type="button"><i class="fa-solid fa-moon" aria-hidden="true"></i> Dark</button>
     </div>
-    <h2>How it works?</h2>
+    <section class="site-banner" aria-label="Site banner">
+      <h1 class="site-banner-title">RED<span class="brand-a-wrap">A<span class="brand-a-redact" aria-hidden="true"></span></span>CT<span class="site-suffix">.SITE</span></h1>
+      <p class="site-banner-sub">Privacy-first redaction for text, images, audio, and PDFs - Automatically censor and remove sensitive data locally. We keep it private and secure as  this runs with local AI model</p>
+      <p class="site-banner-foot">Powered by OpenAI privacy filter model</p>
+    </section>
+    <section class="section-block" aria-label="How it works section">
+      <h2 class="section-title">How it works?</h2>
+      <div class="offline-pill">Offline-first OCR + image privacy protection</div>
+      <div class="how-anim" aria-hidden="true">
+        <div class="how-doc-line">Name: John Doe<span class="how-doc-redact" style="left:62px; width:96px;"></span></div>
+        <div class="how-doc-line">Account Number: 12312<span class="how-doc-redact delay-2" style="left:132px; width:74px;"></span></div>
+        <div class="how-doc-line">Address: 43, Street 9, California<span class="how-doc-redact delay-3" style="left:74px; width:184px;"></span></div>
+        <div class="how-face-row">
+          <span class="how-face-label">Face eye mask</span>
+          <div class="how-face">
+            <span class="how-eye-censor left"></span>
+            <span class="how-eye-censor right"></span>
+          </div>
+        </div>
+        <div class="how-filler-row">
+          <span class="how-filler-chip w1"></span>
+          <span class="how-filler-chip w2"></span>
+          <span class="how-filler-chip w3"></span>
+          <span class="how-filler-chip w4"></span>
+          <span class="how-filler-chip w2"></span>
+          <span class="how-filler-chip w1"></span>
+        </div>
+      </div>
+      <p>Redact.site automatically detects and removes PII, private words, and eye regions from images in your browser. Client‑side image redaction with zero uploads for fast, private sharing.  You can download the redacted version.</p>
+    </section>
 
-    <h1>Image Privacy Redaction</h1>
-    <div class="offline-pill">Offline-first: works even without Wi-Fi after model cache</div>
-    <p>This site redacts sensitive PII in your image before you share it anywhere. Think before you upload to ChatGPT or any other AI site - redact it here first.</p>
+    <section class="section-block" aria-label="Input section">
+      
+      <section id="sample-panel" class="sample-panel" aria-label="Sample images">
+        <div class="sample-panel-head">
+          <!-- <div class="sample-preview-mini">
+            <img id="sample-preview-mini" alt=" " src="">
+            <span>Sample preview</span>
+          </div> -->
+          <button id="sample-toggle-btn" class="sample-toggle-btn" type="button">Expand Samples</button>
+        </div>
+        <div class="sample-list-wrap">
+          <div id="gallery" class="gallery"></div>
+        </div>
+      </section>
 
-    <div class="toolbar">
+      <h2 class="section-title">Upload image to redact</h2>
+      <div class="toolbar">
       <label for="file-input" class="upload-label"><i class="fa-solid fa-upload"></i> Upload image</label>
       <input id="file-input" type="file" accept="image/*">
-      <button id="run-redact" type="button"><i class="fa-solid fa-user-shield"></i> Detect + Redact</button>
+      <button id="run-redact" type="button"  ><i class="fa-solid fa-user-shield"></i> Detect + Redact</button>
       <button id="download-btn" type="button" disabled><i class="fa-solid fa-download"></i> Download redacted</button>
       <label class="color-picker-wrap">Box color <input id="redaction-color" type="color" value="#000000"></label>
     </div>
+    </section>
 
-    <div id="status" class="status">Ready. Choose a sample or upload your image.</div>
-    <div class="progress-wrap is-hidden" aria-live="polite">
-      <p id="progress-label" class="progress-label">Progress: 0%</p>
-      <div class="progress-track" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
-        <div id="progress-fill" class="progress-fill"></div>
+    <section id="results-section" class="section-block" aria-label="Result section" hidden>
+      <div class="section-title-row">
+        <h2 class="section-title">Result section</h2>
+        <button id="accurate-ocr-btn" class="small-action-btn" type="button">Want more accurate?</button>
       </div>
-    </div>
-
-    <div class="workspace-grid">
+      <div id="results-grid" class="workspace-grid">
       <div>
-        <section id="sample-panel" class="sample-panel" aria-label="Sample images">
-          <div class="sample-panel-head">
-            <div class="sample-preview-mini">
-              <img id="sample-preview-mini" alt=" " src="">
-              <span>Sample preview</span>
-            </div>
-            <button id="sample-toggle-btn" class="sample-toggle-btn" type="button">Expand Samples</button>
-          </div>
-          <div class="sample-list-wrap">
-            <div id="gallery" class="gallery"></div>
-          </div>
-        </section>
 
         <div class="canvas-wrap">
           <div id="canvas-stage" class="canvas-stage">
@@ -398,37 +744,100 @@
           </div>
         </div>
 
-        <details>
+        <details id="detection-details" hidden>
           <summary>Detection Output (collapsed by default)</summary>
           <pre id="output"></pre>
         </details>
       </div>
-      <aside class="category-panel" aria-label="Privacy category counters">
+      <aside id="category-panel" class="category-panel" aria-label="Privacy category counters" hidden>
         <h3>Detected counts</h3>
         <div id="category-list" class="category-list"></div>
         <div id="category-short" class="category-short">Click a count to view detected words</div>
       </aside>
     </div>
+    </section>
   </main>
+  <div class="seo-hidden" aria-hidden="true">hidden keyword: FREE privacy redaction, FREE pii masking, FREE text image audio pdf redact, local ai model, client-side secure</div>
+  <div id="loading-overlay" class="loading-overlay" hidden>
+    <div class="loading-card" role="status" aria-live="polite">
+      <p id="loading-status" class="loading-status">Loading...</p>
+      <p class="loading-tip">First-time model download may take longer. Next runs are faster from local cache.</p>
+      <div class="progress-wrap">
+        <p id="progress-label" class="progress-label">Progress: 0%</p>
+        <div class="progress-track" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+          <div id="progress-fill" class="progress-fill"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <button id="help-fab" class="help-fab" type="button" aria-label="Open info dialog">?</button>
+  <div id="help-modal" class="help-modal" hidden>
+    <div class="help-card" role="dialog" aria-modal="true" aria-labelledby="help-title">
+      <h3 id="help-title">About this tool</h3>
+      <p>This tool redacts private information directly in your browser. It is built for quick, client-side masking so you can remove sensitive data before sharing notes, emails, logs, or uploads.</p>
+      <p><strong>Supported formats</strong></p>
+      <ul>
+        <li>Text</li>
+        <li>Images</li>
+        <li>PDFs</li>
+        <li>Audio</li>
+      </ul>
+      <p><strong>What it detects and redacts</strong></p>
+      <ul>
+        <li>Names</li>
+        <li>Physical addresses</li>
+        <li>Email addresses</li>
+        <li>Phone numbers</li>
+        <li>URLs and sensitive links</li>
+        <li>Dates (including birthdates)</li>
+        <li>Account numbers and financial IDs</li>
+        <li>API keys, passwords, and secrets</li>
+        <li>Private words and custom sensitive terms</li>
+        <li>Face and eye regions in images</li>
+      </ul>
+      <p><strong>How it works</strong></p>
+      <p>All processing runs client-side in your browser. Files and data are not uploaded to any server. The tool automatically scans content, highlights detected items, and replaces or masks them so you can download a redacted copy.</p>
+      <p><strong>Privacy and security</strong></p>
+      <p>No signup, no cloud uploads, and no external storage. Everything happens locally for maximum privacy and compliance.</p>
+      <p><strong>Need help or custom options</strong></p>
+      <p>For bulk redaction, workspace installation, or custom rules, contact <a href="mailto:seanlon@redact.site">seanlon@redact.site</a>.</p>
+      <div class="help-actions"><button id="close-help" type="button">Close</button></div>
+    </div>
+  </div>
 
   <script type="module">
-    import { pipeline } from "https://cdn.jsdelivr.net/npm/@huggingface/transformers";
+    import {
+      pipeline,
+      Florence2ForConditionalGeneration,
+      AutoProcessor,
+      AutoTokenizer,
+      RawImage,
+    } from "https://cdn.jsdelivr.net/npm/@huggingface/transformers";
     import Tesseract from "https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.esm.min.js";
 
     const fileInput = document.querySelector("#file-input");
     const runButton = document.querySelector("#run-redact");
     const downloadBtn = document.querySelector("#download-btn");
-    const statusEl = document.querySelector("#status");
+    const loadingOverlay = document.querySelector("#loading-overlay");
+    const loadingStatus = document.querySelector("#loading-status");
     const output = document.querySelector("#output");
     const redactionColorInput = document.querySelector("#redaction-color");
     const progressLabel = document.querySelector("#progress-label");
     const progressFill = document.querySelector("#progress-fill");
     const progressTrack = document.querySelector(".progress-track");
-    const progressWrap = document.querySelector(".progress-wrap");
+    const resultsGrid = document.querySelector("#results-grid");
     const gallery = document.querySelector("#gallery");
     const samplePanel = document.querySelector("#sample-panel");
     const sampleToggleBtn = document.querySelector("#sample-toggle-btn");
+    const accurateOcrButton = document.querySelector("#accurate-ocr-btn");
     const samplePreviewMini = document.querySelector("#sample-preview-mini");
+    const resultsSection = document.querySelector("#results-section");
+    const themeToggle = document.querySelector("#theme-toggle");
+    const helpFab = document.querySelector("#help-fab");
+    const helpModal = document.querySelector("#help-modal");
+    const closeHelp = document.querySelector("#close-help");
+    const categoryPanel = document.querySelector("#category-panel");
+    const detectionDetails = document.querySelector("#detection-details");
     const categoryList = document.querySelector("#category-list");
     const categoryShort = document.querySelector("#category-short");
     const canvas = document.querySelector("#canvas");
@@ -437,13 +846,32 @@
     const ctx = canvas.getContext("2d");
 
     let classifierPromise;
+    let florenceOcrPromise;
     let workerPromise;
+    let faceLandmarkerPromise;
     let currentImage = null;
     let redactionBoxes = [];
     let selectedBoxIndex = -1;
     let interaction = null;
     let activeCategoryKey = "";
     let latestEntities = [];
+    let useFlorenceOcr = false;
+
+    function applyTheme(theme) {
+      document.documentElement.dataset.theme = theme;
+      const isDark = theme === "dark";
+      themeToggle.innerHTML = isDark
+        ? '<i class="fa-solid fa-sun" aria-hidden="true"></i> Light'
+        : '<i class="fa-solid fa-moon" aria-hidden="true"></i> Dark';
+    }
+    function initTheme() {
+      const stored = localStorage.getItem("redact-theme");
+      if (stored === "dark" || stored === "light") {
+        applyTheme(stored);
+      } else {
+        applyTheme("light");
+      }
+    }
 
     const CATEGORY_CONFIG = [
       { key: "private_person", name: "Person", short: "PER" },
@@ -454,10 +882,11 @@
       { key: "private_url", name: "URL", short: "URL" },
       { key: "private_phone", name: "Phone", short: "PHN" },
       { key: "sec", name: "Secret", short: "SEC" },
+      { key: "private_face_eye", name: "Eyes", short: "EYE" },
     ];
 
     function setStatus(message) {
-      statusEl.textContent = message;
+      loadingStatus.textContent = message;
       console.log(message);
     }
 
@@ -466,7 +895,7 @@
       progressLabel.textContent = `Progress: ${clamped}%`;
       progressFill.style.width = `${clamped}%`;
       progressTrack.setAttribute("aria-valuenow", String(clamped));
-      progressWrap.classList.toggle("is-hidden", clamped === 0);
+      loadingOverlay.hidden = !(clamped > 0 && clamped < 100);
     }
 
     function emptyCategoryCounts() {
@@ -502,6 +931,11 @@
       return [...new Set(words)];
     }
 
+    function showDetectionPanels() {
+      categoryPanel.hidden = false;
+      detectionDetails.hidden = false;
+    }
+
     async function getClassifier() {
       classifierPromise ??= pipeline("token-classification", "openai/privacy-filter", {
         device: "webgpu",
@@ -516,6 +950,270 @@
         return worker;
       })();
       return workerPromise;
+    }
+
+    async function getFlorenceOcr() {
+      florenceOcrPromise ??= (async () => {
+        const modelId = "onnx-community/Florence-2-base-ft";
+        console.log("Loading Florence-2 components:", modelId);
+        const [model, processor, tokenizer] = await Promise.all([
+          Florence2ForConditionalGeneration.from_pretrained(modelId, {
+            dtype: {
+              embed_tokens: "fp16",
+              vision_encoder: "fp16",
+              encoder_model: "q4",
+              decoder_model_merged: "q4",
+            },
+            device: "webgpu",
+          }),
+          AutoProcessor.from_pretrained(modelId),
+          AutoTokenizer.from_pretrained(modelId),
+        ]);
+        return { model, processor, tokenizer };
+      })();
+      return florenceOcrPromise;
+    }
+
+    function parseFlorenceStructuredOcr(result) {
+      const taskResult = result?.["<OCR_WITH_REGION>"];
+      const labels = taskResult?.labels || [];
+      const quadBoxes = taskResult?.quad_boxes || [];
+      const words = [];
+      for (let i = 0; i < Math.min(labels.length, quadBoxes.length); i++) {
+        const label = String(labels[i] || "").trim();
+        const quad = quadBoxes[i];
+        if (!label || !Array.isArray(quad) || quad.length < 8) continue;
+        const xs = [quad[0], quad[2], quad[4], quad[6]].map(Number);
+        const ys = [quad[1], quad[3], quad[5], quad[7]].map(Number);
+        if (![...xs, ...ys].every(Number.isFinite)) continue;
+        const x0 = Math.min(...xs);
+        const y0 = Math.min(...ys);
+        const x1 = Math.max(...xs);
+        const y1 = Math.max(...ys);
+        if (x1 - x0 < 2 || y1 - y0 < 2) continue;
+        words.push({
+          text: label,
+          bbox: { x0, y0, x1, y1 },
+        });
+      }
+      return words;
+    }
+
+    function parseFlorenceOcrWithRegions(generatedText, width, height) {
+      const results = [];
+      const text = String(generatedText || "");
+      const cleaned = text.replace("<OCR_WITH_REGION>", "").trim();
+      const pattern = /(.*?)(?:<loc_(\d+)><loc_(\d+)><loc_(\d+)><loc_(\d+)>)/g;
+      let match;
+      while ((match = pattern.exec(cleaned)) !== null) {
+        const content = String(match[1] || "").trim();
+        if (!content) continue;
+        const x0 = Number(match[2]);
+        const y0 = Number(match[3]);
+        const x1 = Number(match[4]);
+        const y1 = Number(match[5]);
+        if (![x0, y0, x1, y1].every(Number.isFinite)) continue;
+        const left = Math.max(0, Math.min(x0, x1) / 1000 * width);
+        const top = Math.max(0, Math.min(y0, y1) / 1000 * height);
+        const right = Math.min(width, Math.max(x0, x1) / 1000 * width);
+        const bottom = Math.min(height, Math.max(y0, y1) / 1000 * height);
+        if (right - left < 2 || bottom - top < 2) continue;
+        results.push({
+          text: content,
+          bbox: { x0: left, y0: top, x1: right, y1: bottom },
+        });
+      }
+      return results;
+    }
+
+    async function recognizeWithSelectedOcr() {
+      if (useFlorenceOcr) {
+        try {
+          console.group("OCR engine: Florence-2 WebGPU");
+          setStatus("Running Florence-2 OCR with region...");
+          updateProgress(44);
+          const florence = await getFlorenceOcr();
+          console.log("Florence model loaded. Starting inference...");
+          const imageDataUrl = canvas.toDataURL("image/png");
+          const rawImage = await RawImage.fromURL(imageDataUrl);
+          const task = "<OCR_WITH_REGION>";
+          const visionInputs = await florence.processor(rawImage);
+          const prompts = florence.processor.construct_prompts(task);
+          const textInputs = florence.tokenizer(prompts);
+          const generatedIds = await florence.model.generate({
+            ...textInputs,
+            ...visionInputs,
+            max_new_tokens: 1024,
+          });
+          const generatedText = florence.tokenizer.batch_decode(generatedIds, {
+            skip_special_tokens: false,
+          });
+          const firstText = generatedText?.[0] || "";
+          const structured = florence.processor.post_process_generation(firstText, task, rawImage.size);
+          console.log("Florence generated_text preview:", String(generatedText || "").slice(0, 220));
+          let words = parseFlorenceStructuredOcr(structured);
+          if (words.length === 0) {
+            words = parseFlorenceOcrWithRegions(firstText, canvas.width, canvas.height);
+          }
+          if (words.length > 0) {
+            console.log(`Florence OCR regions parsed: ${words.length}`);
+            console.groupEnd();
+            return {
+              words,
+              engine: "florence2-webgpu",
+              fallback: false,
+              florence_preview: String(firstText || "").slice(0, 500),
+            };
+          }
+          console.warn("Florence OCR returned no regions, fallback to Tesseract.");
+          console.groupEnd();
+        } catch (error) {
+          console.warn("Florence OCR failed, fallback to Tesseract:", error);
+          console.groupEnd();
+        }
+      }
+
+      console.group("OCR engine: Tesseract");
+      setStatus("Running OCR...");
+      updateProgress(50);
+      const worker = await getWorker();
+      const { data } = await worker.recognize(canvas);
+      const words = (data.words || []).filter((w) => (w.text || "").trim().length > 0 && w.bbox);
+      console.log(`Tesseract words detected: ${words.length}`);
+      console.groupEnd();
+      return {
+        words,
+        engine: "tesseract",
+        fallback: useFlorenceOcr,
+        florence_preview: "",
+      };
+    }
+
+    async function getFaceLandmarker() {
+      faceLandmarkerPromise ??= (async () => {
+        const mp = await import("https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14");
+        const vision = await mp.FilesetResolver.forVisionTasks(
+          "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm",
+        );
+        return mp.FaceLandmarker.createFromOptions(vision, {
+          baseOptions: {
+            modelAssetPath:
+              "https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task",
+          },
+          runningMode: "IMAGE",
+          numFaces: 5,
+          outputFaceBlendshapes: false,
+          outputFaceTransformationMatrixes: false,
+        });
+      })();
+      return faceLandmarkerPromise;
+    }
+
+    const LEFT_EYE_INDICES = [33, 133, 159, 145, 160, 144, 158, 153];
+    const RIGHT_EYE_INDICES = [362, 263, 386, 374, 385, 380, 387, 373];
+
+    function eyeRectFromLandmarks(landmarks, indices, width, height) {
+      const points = indices
+        .map((idx) => landmarks[idx])
+        .filter((point) => point && Number.isFinite(point.x) && Number.isFinite(point.y));
+      if (points.length < 3) return null;
+
+      let minX = Infinity;
+      let minY = Infinity;
+      let maxX = -Infinity;
+      let maxY = -Infinity;
+      for (const point of points) {
+        const x = point.x * width;
+        const y = point.y * height;
+        minX = Math.min(minX, x);
+        minY = Math.min(minY, y);
+        maxX = Math.max(maxX, x);
+        maxY = Math.max(maxY, y);
+      }
+      const baseW = Math.max(4, maxX - minX);
+      const baseH = Math.max(4, maxY - minY);
+      const padX = baseW * 0.6 + 4;
+      const padY = baseH * 0.9 + 3;
+      const left = Math.max(0, minX - padX);
+      const top = Math.max(0, minY - padY);
+      const right = Math.min(width, maxX + padX);
+      const bottom = Math.min(height, maxY + padY);
+      if (right - left < 6 || bottom - top < 6) return null;
+      return { x: left, y: top, w: right - left, h: bottom - top };
+    }
+
+    async function detectEyeRedactionRects(sourceCanvas) {
+      try {
+        const faceLandmarker = await Promise.race([
+          getFaceLandmarker(),
+          new Promise((_, reject) => {
+            setTimeout(() => reject(new Error("MediaPipe init timeout")), 3500);
+          }),
+        ]);
+        const result = faceLandmarker.detect(sourceCanvas);
+        const faces = result?.faceLandmarks || [];
+        const rects = [];
+        for (const landmarks of faces) {
+          const left = eyeRectFromLandmarks(landmarks, LEFT_EYE_INDICES, sourceCanvas.width, sourceCanvas.height);
+          const right = eyeRectFromLandmarks(landmarks, RIGHT_EYE_INDICES, sourceCanvas.width, sourceCanvas.height);
+          if (left) rects.push(left);
+          if (right) rects.push(right);
+        }
+        return rects;
+      } catch (error) {
+        console.warn("MediaPipe eye detection unavailable:", error);
+        return [];
+      }
+    }
+
+    async function applyEyePostPass(debugTargets) {
+      if (!currentImage || !canvas.width || !canvas.height) return;
+      const eyeRects = await detectEyeRedactionRects(canvas);
+      if (eyeRects.length === 0) return;
+
+      const startCount = redactionBoxes.length;
+      for (const rect of eyeRects) {
+        redactionBoxes.push({
+          x: Math.max(0, rect.x - 2),
+          y: Math.max(0, rect.y - 2),
+          w: rect.w + 4,
+          h: rect.h + 4,
+          color: redactionColorInput.value || "#000000",
+          categoryKey: "private_face_eye",
+        });
+        debugTargets.push({
+          category: "private_face_eye",
+          matchedWord: "eye_region",
+          entityWord: "face_eye",
+          bbox: { x: rect.x, y: rect.y, w: rect.w, h: rect.h },
+        });
+      }
+
+      const eyeEntities = eyeRects.map((_, idx) => ({
+        entity_group: "private_face_eye",
+        score: 1,
+        word: `eye_region_${idx + 1}`,
+      }));
+      latestEntities = [...latestEntities, ...eyeEntities];
+      renderCategoryCounts(computeCategoryCounts(latestEntities));
+
+      if (selectedBoxIndex < 0) {
+        selectBox(startCount);
+      } else {
+        renderRedactionBoxes();
+      }
+
+      try {
+        const parsed = JSON.parse(output.textContent || "{}");
+        parsed.entities = latestEntities;
+        parsed.eye_box_count = eyeRects.length;
+        parsed.redaction_box_count = redactionBoxes.length;
+        parsed.boxes = redactionBoxes;
+        output.textContent = JSON.stringify(parsed, null, 2);
+      } catch {
+        // Keep existing output as-is if parsing fails.
+      }
+      console.log(`Eye post-pass added ${eyeRects.length} region(s).`);
     }
 
     function buildSampleImage(lines, title, tag) {
@@ -574,16 +1272,21 @@
       img.onload = () => {
         currentImage = img;
         drawImage(img);
+        resultsSection.hidden = false;
         setStatus("Image loaded. Auto-starting redaction...");
         output.textContent = "";
         activeCategoryKey = "";
         latestEntities = [];
+        categoryPanel.hidden = true;
+        detectionDetails.hidden = true;
         categoryShort.textContent = "Click a count to view detected words";
         renderCategoryCounts(emptyCategoryCounts());
-        samplePreviewMini.src = src;
-        downloadBtn.disabled = true;
+        // samplePreviewMini.src = src;
+        // downloadBtn.disabled = true;
         setTimeout(() => {
+          document.getElementById("run-redact")?.click()
           if (!runButton.disabled && currentImage) runButton.click();
+          
         }, 500);
       };
       img.onerror = () => setStatus("Could not load image.");
@@ -918,7 +1621,6 @@
 
     async function processRedaction() {
       if (!currentImage) {
-        setStatus("Please upload or select an image first.");
         return;
       }
 
@@ -928,14 +1630,14 @@
       updateProgress(0);
 
       try {
-        setStatus("Loading OCR worker...");
-        updateProgress(25);
-        const worker = await getWorker();
-
-        setStatus("Running OCR...");
-        updateProgress(50);
-        const { data } = await worker.recognize(canvas);
-        const ocrWords = (data.words || []).filter((w) => (w.text || "").trim().length > 0 && w.bbox);
+        if (!useFlorenceOcr) {
+          setStatus("Loading OCR worker...");
+          updateProgress(25);
+          await getWorker();
+        }
+        const ocrResult = await recognizeWithSelectedOcr();
+        const ocrWords = ocrResult.words;
+        console.log(`OCR selected engine: ${ocrResult.engine}${ocrResult.fallback ? " (Florence fallback)" : ""}`);
 
         const wordMap = buildWordMap(ocrWords);
         setStatus("Detecting privacy entities...");
@@ -944,7 +1646,6 @@
         const modelEntities = await classifier(wordMap.text, { aggregation_strategy: "simple" });
         const heuristicEntities = heuristicPersonEntities(wordMap.text);
         const entities = [...modelEntities, ...heuristicEntities];
-        latestEntities = entities;
         const beforeText = wordMap.text;
         const afterWords = ocrWords.map((w) => String(w.text || ""));
         const debugOriginal = [];
@@ -978,6 +1679,8 @@
             });
           }
         }
+
+        latestEntities = entities;
         const afterText = afterWords.join(" ");
 
         drawImage(currentImage);
@@ -994,6 +1697,9 @@
 
         output.textContent = JSON.stringify({
           entities,
+          ocr_engine: ocrResult.engine,
+          ocr_fallback_from_florence: ocrResult.fallback,
+          florence_generated_preview: ocrResult.florence_preview,
           ocr_word_count: ocrWords.length,
           redaction_box_count: redactionBoxes.length,
           boxes: redactionBoxes,
@@ -1011,10 +1717,12 @@
         activeCategoryKey = "";
         categoryShort.textContent = "Click a count to view detected words";
         renderCategoryCounts(computeCategoryCounts(entities));
+        showDetectionPanels();
 
         updateProgress(100);
         setStatus(`Done. Redacted ${redactionBoxes.length} region(s).`);
         downloadBtn.disabled = false;
+        void applyEyePostPass(debugTargets);
       } catch (error) {
         console.error(error);
         setStatus(`Error: ${error.message}`);
@@ -1032,6 +1740,16 @@
     });
 
     runButton.addEventListener("click", processRedaction);
+    accurateOcrButton.addEventListener("click", async () => {
+      useFlorenceOcr = true;
+      accurateOcrButton.textContent = "Florence mode enabled";
+      accurateOcrButton.disabled = true;
+      console.log("Florence mode enabled by user. Next run will attempt Florence-2 OCR first.");
+      if (currentImage && !runButton.disabled) {
+        console.log("Re-running redaction immediately using Florence-first OCR mode...");
+        await processRedaction();
+      }
+    });
     downloadBtn.addEventListener("click", () => {
       if (!currentImage) return;
       const offscreen = document.createElement("canvas");
@@ -1145,10 +1863,26 @@
     });
 
     window.addEventListener("resize", renderRedactionBoxes);
+    helpFab.addEventListener("click", () => { helpModal.hidden = false; });
+    closeHelp.addEventListener("click", () => { helpModal.hidden = true; });
+    helpModal.addEventListener("click", (event) => {
+      if (event.target === helpModal) helpModal.hidden = true;
+    });
+    themeToggle.addEventListener("click", () => {
+      const current = document.documentElement.dataset.theme === "dark" ? "dark" : "light";
+      const next = current === "dark" ? "light" : "dark";
+      applyTheme(next);
+      localStorage.setItem("redact-theme", next);
+    });
 
+    initTheme();
     renderGallery();
     renderCategoryCounts(emptyCategoryCounts());
-    setStatus("Ready. Upload an image or expand samples to choose manually.");
+    loadingOverlay.hidden = true;
   </script>
+  <!-- Google Tag Manager (noscript) -->
+  <noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-WTTD6SZF"
+  height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
+  <!-- End Google Tag Manager (noscript) -->
 </body>
 </html>
