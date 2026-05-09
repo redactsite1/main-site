@@ -30,8 +30,11 @@ export function VoiceRedactionPage() {
     progress: 0,
     message: ''
   });
+  const [isInfoOpen, setIsInfoOpen] = useState(false);
 
   const resultsRef = useRef<HTMLDivElement>(null);
+  const stepOneRef = useRef<HTMLDivElement>(null);
+  const sampleAutoStartRef = useRef(false);
 
   // Sync URLs with audioFile and redactedAudioBlob
   useEffect(() => {
@@ -54,12 +57,15 @@ export function VoiceRedactionPage() {
     }
   }, [redactedAudioBlob]);
 
-  // Auto-start processing after 1.5s when audio is loaded
+  // Auto-start processing when audio is loaded.
+  // Sample audio clicks use a shorter delay so it feels immediate.
   useEffect(() => {
     if (audioBuffer && processingState.status === 'idle') {
+      const delayMs = sampleAutoStartRef.current ? 200 : 1500;
       const timer = setTimeout(() => {
+        sampleAutoStartRef.current = false;
         processAudio();
-      }, 1500);
+      }, delayMs);
       return () => clearTimeout(timer);
     }
   }, [audioBuffer, processingState.status]);
@@ -88,6 +94,14 @@ export function VoiceRedactionPage() {
     const file = new File([blob], 'recording.webm', { type: 'audio/webm' });
     handleAudioLoaded(file, buffer);
   };
+
+  const handleSampleLoaded = useCallback((file: File, buffer: AudioBuffer) => {
+    sampleAutoStartRef.current = true;
+    handleAudioLoaded(file, buffer);
+    setTimeout(() => {
+      stepOneRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 80);
+  }, [handleAudioLoaded]);
 
   const processAudio = useCallback(async () => {
     if (!audioBuffer) {
@@ -239,18 +253,131 @@ export function VoiceRedactionPage() {
 
   return (
     <div className="min-h-screen w-full bg-background">
+      <style>{`
+        @keyframes brandASlash {
+          0%, 22% { transform: scaleX(0); }
+          36%, 78% { transform: scaleX(1); }
+          100% { transform: scaleX(0); }
+        }
+        @keyframes wavePulse {
+          0%, 100% { transform: scaleY(0.35); opacity: 0.45; }
+          50% { transform: scaleY(1); opacity: 1; }
+        }
+        @keyframes waveRedactSlash {
+          0%, 30% { transform: scaleX(0); opacity: 0; }
+          45%, 80% { transform: scaleX(1); opacity: 1; }
+          100% { transform: scaleX(0); opacity: 0; }
+        }
+        .brand-a-wrap {
+          position: relative;
+          display: inline-block;
+        }
+        .brand-a-slash {
+          position: absolute;
+          left: -0.04em;
+          right: -0.04em;
+          top: 48%;
+          height: 0.18em;
+          border-radius: 999px;
+          background: #ff1f1f;
+          transform: scaleX(0);
+          transform-origin: left;
+          animation: brandASlash 2.8s ease-in-out infinite;
+        }
+        .soundwave {
+          display: flex;
+          justify-content: center;
+          gap: 4px;
+          height: 44px;
+          align-items: flex-end;
+          margin-bottom: 8px;
+        }
+        .wave-bar {
+          position: relative;
+          width: 6px;
+          border-radius: 999px;
+          background: hsl(var(--primary));
+          transform-origin: bottom;
+          animation: wavePulse 1.2s ease-in-out infinite;
+        }
+        .wave-bar.redacted::after {
+          content: "";
+          position: absolute;
+          left: -3px;
+          right: -3px;
+          top: 42%;
+          height: 3px;
+          border-radius: 999px;
+          background: #ff1f1f;
+          transform: scaleX(0);
+          transform-origin: left;
+          animation: waveRedactSlash 2.4s ease-in-out infinite;
+        }
+        .info-fab {
+          position: fixed;
+          right: 20px;
+          bottom: 20px;
+          width: 48px;
+          height: 48px;
+          border-radius: 999px;
+          border: 1px solid hsl(var(--border));
+          background: hsl(var(--primary));
+          color: hsl(var(--primary-foreground));
+          font-weight: 700;
+          box-shadow: 0 10px 24px rgba(0, 0, 0, 0.22);
+          z-index: 50;
+        }
+        .info-overlay {
+          position: fixed;
+          inset: 0;
+          background: rgba(0, 0, 0, 0.45);
+          display: grid;
+          place-items: center;
+          z-index: 60;
+          padding: 16px;
+        }
+        .info-card {
+          width: min(680px, 100%);
+          max-height: min(82vh, 760px);
+          overflow-y: auto;
+          border: 1px solid hsl(var(--border));
+          border-radius: 12px;
+          background: hsl(var(--background));
+          color: hsl(var(--foreground));
+          box-shadow: 0 16px 34px rgba(0, 0, 0, 0.28);
+          padding: 16px;
+        }
+      `}</style>
       <div className="container mx-auto px-4 py-8 md:py-12 max-w-6xl">
         <div className="space-y-8">
           <div className="text-center space-y-4">
             <div className="flex flex-col items-center gap-4 mb-2">
-              <img 
+              <div className="soundwave" aria-hidden="true">
+                <span className="wave-bar" style={{ height: '16px', animationDelay: '0s' }} />
+                <span className="wave-bar redacted" style={{ height: '30px', animationDelay: '0.08s' }} />
+                <span className="wave-bar" style={{ height: '22px', animationDelay: '0.16s' }} />
+                <span className="wave-bar" style={{ height: '36px', animationDelay: '0.24s' }} />
+                <span className="wave-bar redacted" style={{ height: '40px', animationDelay: '0.32s' }} />
+                <span className="wave-bar" style={{ height: '26px', animationDelay: '0.4s' }} />
+                <span className="wave-bar" style={{ height: '34px', animationDelay: '0.48s' }} />
+                <span className="wave-bar redacted" style={{ height: '20px', animationDelay: '0.56s' }} />
+                <span className="wave-bar" style={{ height: '28px', animationDelay: '0.64s' }} />
+                <span className="wave-bar" style={{ height: '14px', animationDelay: '0.72s' }} />
+              </div>
+              {/* <img 
                 src="https://miaoda-conversation-file.s3cdn.medo.dev/user-b2iianck7ytc/conv-bcula9k2vf28/20260508/file-bhtoulu00npd.png" 
                 alt="InSound Logo" 
                 className="h-24 w-24 md:h-32 md:w-32 object-contain"
-              />
+              /> */}
               <div className="space-y-2">
-                <h1 className="text-3xl md:text-4xl font-semibold tracking-tight">
-                  隐声 InSound AI
+                <h1 className="text-4xl md:text-6xl font-black tracking-tight leading-none">
+                  RED
+                  <span className="brand-a-wrap">
+                    A
+                    <span className="brand-a-slash" aria-hidden="true" />
+                  </span>
+                  CT
+                  <span className="text-base md:text-2xl align-super ml-1">.SITE</span>
                 </h1>
                 <p className="text-lg md:text-xl text-muted-foreground font-medium">
                   Real-Time Audio PII Redaction
@@ -262,8 +389,13 @@ export function VoiceRedactionPage() {
               100% Local Processing • WebGPU Accelerated • Zero Server Upload
             </div>
             <p className="text-muted-foreground max-w-2xl mx-auto text-base">
+            Free! No signup, no paywall, no data sent to servers. No BS!<br/>
               Automatically detect and redact sensitive information from audio recordings. Remove names, phone numbers, addresses, and other PII with beep sounds. All processing happens locally in your browser—your audio never leaves your device.
+              
             </p>
+            <div style={{ opacity: 0.1, visibility: 'hidden' }} className="max-w-3xl mx-auto text-xs">
+              REDACT.SITE free local audio ai redaction helps redact names, addresses, emails, phone numbers, account numbers, API keys, passwords, private words, and sensitive data in recordings with client-side privacy and secure browser processing.
+            </div>
             <div className="mt-4 p-4 rounded-lg bg-accent/30 border max-w-2xl mx-auto text-left">
               <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div className="space-y-1">
@@ -278,6 +410,7 @@ export function VoiceRedactionPage() {
                 <div className="shrink-0">
                   <SamplePIIButton 
                     disabled={processingState.status !== 'idle' && processingState.status !== 'complete' && processingState.status !== 'error'}
+                    onSampleLoaded={handleSampleLoaded}
                   />
                 </div>
               </div>
@@ -316,7 +449,7 @@ export function VoiceRedactionPage() {
             </Alert>
           )}
 
-          <Card>
+          <Card ref={stepOneRef} className={isProcessing ? 'hidden' : ''}>
             <CardHeader>
               <CardTitle>Step 1: Audio Input</CardTitle>
             </CardHeader>
@@ -460,6 +593,54 @@ export function VoiceRedactionPage() {
           )}
         </div>
       </div>
+      <button className="info-fab" type="button" aria-label="Open info modal" onClick={() => setIsInfoOpen(true)}>
+        ?
+      </button>
+      {isInfoOpen && (
+        <div className="info-overlay" onClick={() => setIsInfoOpen(false)}>
+          <div className="info-card" role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
+            <h3 className="text-lg font-semibold mb-2">About this tool</h3>
+            <p className="text-sm text-muted-foreground mb-3">
+              This tool redacts private information directly in your browser. It is built for quick, client-side masking so you can remove sensitive data before sharing notes, emails, logs, or uploads.
+            </p>
+            <p className="font-semibold text-sm">Supported formats</p>
+            <ul className="list-disc list-inside text-sm text-muted-foreground mb-3">
+              <li>Text</li>
+              <li>Images</li>
+              <li>PDFs</li>
+              <li>Audio</li>
+            </ul>
+            <p className="font-semibold text-sm">What it detects and redacts</p>
+            <ul className="list-disc list-inside text-sm text-muted-foreground mb-3">
+              <li>Names</li>
+              <li>Physical addresses</li>
+              <li>Email addresses</li>
+              <li>Phone numbers</li>
+              <li>URLs and sensitive links</li>
+              <li>Dates (including birthdates)</li>
+              <li>Account numbers and financial IDs</li>
+              <li>API keys, passwords, and secrets</li>
+              <li>Private words and custom sensitive terms</li>
+              <li>Face and eye regions in images</li>
+            </ul>
+            <p className="font-semibold text-sm">How it works</p>
+            <p className="text-sm text-muted-foreground mb-3">
+              All processing runs client-side in your browser. Files and data are not uploaded to any server. The tool automatically scans content, highlights detected items, and replaces or masks them so you can download a redacted copy.
+            </p>
+            <p className="font-semibold text-sm">Privacy and security</p>
+            <p className="text-sm text-muted-foreground mb-3">
+              No signup, no cloud uploads, and no external storage. Everything happens locally for maximum privacy and compliance.
+            </p>
+            <p className="font-semibold text-sm">Need help or custom options</p>
+            <p className="text-sm text-muted-foreground mb-4">
+              For bulk redaction, workspace installation, or custom rules, contact <a className="underline" href="mailto:seanlon@redact.site">seanlon@redact.site</a>.
+            </p>
+            <div className="flex justify-end">
+              <Button type="button" variant="outline" onClick={() => setIsInfoOpen(false)}>Close</Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
