@@ -139,6 +139,22 @@
       text-transform: uppercase;
       letter-spacing: 0.03em;
     }
+    .section-title-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 10px;
+    }
+    .small-action-btn {
+      margin: 0;
+      padding: 8px 10px;
+      font: 800 0.68rem/1 Arial, Helvetica, sans-serif;
+      letter-spacing: 0.03em;
+      border-radius: 10px;
+      box-shadow: 4px 4px 0 var(--accent-2);
+      white-space: nowrap;
+    }
     .help-fab {
       position: fixed;
       right: 22px;
@@ -531,7 +547,10 @@
     </section>
 
     <section id="results-section" class="section-block" aria-label="Result section" hidden>
-      <h2 class="section-title">Result section</h2>
+      <div class="section-title-row">
+        <h2 class="section-title">Result section</h2>
+        <button id="accurate-ocr-btn" class="small-action-btn" type="button">Want more accurate?</button>
+      </div>
       <div id="results-grid" class="workspace-grid">
       <div>
 
@@ -576,7 +595,13 @@
   </div>
 
   <script type="module">
-    import { pipeline } from "https://cdn.jsdelivr.net/npm/@huggingface/transformers";
+    import {
+      pipeline,
+      Florence2ForConditionalGeneration,
+      AutoProcessor,
+      AutoTokenizer,
+      RawImage,
+    } from "https://cdn.jsdelivr.net/npm/@huggingface/transformers";
     import Tesseract from "https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.esm.min.js";
 
     const fileInput = document.querySelector("#file-input");
@@ -593,6 +618,7 @@
     const gallery = document.querySelector("#gallery");
     const samplePanel = document.querySelector("#sample-panel");
     const sampleToggleBtn = document.querySelector("#sample-toggle-btn");
+    const accurateOcrButton = document.querySelector("#accurate-ocr-btn");
     const samplePreviewMini = document.querySelector("#sample-preview-mini");
     const resultsSection = document.querySelector("#results-section");
     const themeToggle = document.querySelector("#theme-toggle");
@@ -609,13 +635,16 @@
     const ctx = canvas.getContext("2d");
 
     let classifierPromise;
+    let florenceOcrPromise;
     let workerPromise;
+    let faceLandmarkerPromise;
     let currentImage = null;
     let redactionBoxes = [];
     let selectedBoxIndex = -1;
     let interaction = null;
     let activeCategoryKey = "";
     let latestEntities = [];
+    let useFlorenceOcr = false;
 
     function applyTheme(theme) {
       document.documentElement.dataset.theme = theme;
@@ -642,6 +671,7 @@
       { key: "private_url", name: "URL", short: "URL" },
       { key: "private_phone", name: "Phone", short: "PHN" },
       { key: "sec", name: "Secret", short: "SEC" },
+      { key: "private_face_eye", name: "Eyes", short: "EYE" },
     ];
 
     function setStatus(message) {
@@ -709,6 +739,270 @@
         return worker;
       })();
       return workerPromise;
+    }
+
+    async function getFlorenceOcr() {
+      florenceOcrPromise ??= (async () => {
+        const modelId = "onnx-community/Florence-2-base-ft";
+        console.log("Loading Florence-2 components:", modelId);
+        const [model, processor, tokenizer] = await Promise.all([
+          Florence2ForConditionalGeneration.from_pretrained(modelId, {
+            dtype: {
+              embed_tokens: "fp16",
+              vision_encoder: "fp16",
+              encoder_model: "q4",
+              decoder_model_merged: "q4",
+            },
+            device: "webgpu",
+          }),
+          AutoProcessor.from_pretrained(modelId),
+          AutoTokenizer.from_pretrained(modelId),
+        ]);
+        return { model, processor, tokenizer };
+      })();
+      return florenceOcrPromise;
+    }
+
+    function parseFlorenceStructuredOcr(result) {
+      const taskResult = result?.["<OCR_WITH_REGION>"];
+      const labels = taskResult?.labels || [];
+      const quadBoxes = taskResult?.quad_boxes || [];
+      const words = [];
+      for (let i = 0; i < Math.min(labels.length, quadBoxes.length); i++) {
+        const label = String(labels[i] || "").trim();
+        const quad = quadBoxes[i];
+        if (!label || !Array.isArray(quad) || quad.length < 8) continue;
+        const xs = [quad[0], quad[2], quad[4], quad[6]].map(Number);
+        const ys = [quad[1], quad[3], quad[5], quad[7]].map(Number);
+        if (![...xs, ...ys].every(Number.isFinite)) continue;
+        const x0 = Math.min(...xs);
+        const y0 = Math.min(...ys);
+        const x1 = Math.max(...xs);
+        const y1 = Math.max(...ys);
+        if (x1 - x0 < 2 || y1 - y0 < 2) continue;
+        words.push({
+          text: label,
+          bbox: { x0, y0, x1, y1 },
+        });
+      }
+      return words;
+    }
+
+    function parseFlorenceOcrWithRegions(generatedText, width, height) {
+      const results = [];
+      const text = String(generatedText || "");
+      const cleaned = text.replace("<OCR_WITH_REGION>", "").trim();
+      const pattern = /(.*?)(?:<loc_(\d+)><loc_(\d+)><loc_(\d+)><loc_(\d+)>)/g;
+      let match;
+      while ((match = pattern.exec(cleaned)) !== null) {
+        const content = String(match[1] || "").trim();
+        if (!content) continue;
+        const x0 = Number(match[2]);
+        const y0 = Number(match[3]);
+        const x1 = Number(match[4]);
+        const y1 = Number(match[5]);
+        if (![x0, y0, x1, y1].every(Number.isFinite)) continue;
+        const left = Math.max(0, Math.min(x0, x1) / 1000 * width);
+        const top = Math.max(0, Math.min(y0, y1) / 1000 * height);
+        const right = Math.min(width, Math.max(x0, x1) / 1000 * width);
+        const bottom = Math.min(height, Math.max(y0, y1) / 1000 * height);
+        if (right - left < 2 || bottom - top < 2) continue;
+        results.push({
+          text: content,
+          bbox: { x0: left, y0: top, x1: right, y1: bottom },
+        });
+      }
+      return results;
+    }
+
+    async function recognizeWithSelectedOcr() {
+      if (useFlorenceOcr) {
+        try {
+          console.group("OCR engine: Florence-2 WebGPU");
+          setStatus("Running Florence-2 OCR with region...");
+          updateProgress(44);
+          const florence = await getFlorenceOcr();
+          console.log("Florence model loaded. Starting inference...");
+          const imageDataUrl = canvas.toDataURL("image/png");
+          const rawImage = await RawImage.fromURL(imageDataUrl);
+          const task = "<OCR_WITH_REGION>";
+          const visionInputs = await florence.processor(rawImage);
+          const prompts = florence.processor.construct_prompts(task);
+          const textInputs = florence.tokenizer(prompts);
+          const generatedIds = await florence.model.generate({
+            ...textInputs,
+            ...visionInputs,
+            max_new_tokens: 1024,
+          });
+          const generatedText = florence.tokenizer.batch_decode(generatedIds, {
+            skip_special_tokens: false,
+          });
+          const firstText = generatedText?.[0] || "";
+          const structured = florence.processor.post_process_generation(firstText, task, rawImage.size);
+          console.log("Florence generated_text preview:", String(generatedText || "").slice(0, 220));
+          let words = parseFlorenceStructuredOcr(structured);
+          if (words.length === 0) {
+            words = parseFlorenceOcrWithRegions(firstText, canvas.width, canvas.height);
+          }
+          if (words.length > 0) {
+            console.log(`Florence OCR regions parsed: ${words.length}`);
+            console.groupEnd();
+            return {
+              words,
+              engine: "florence2-webgpu",
+              fallback: false,
+              florence_preview: String(firstText || "").slice(0, 500),
+            };
+          }
+          console.warn("Florence OCR returned no regions, fallback to Tesseract.");
+          console.groupEnd();
+        } catch (error) {
+          console.warn("Florence OCR failed, fallback to Tesseract:", error);
+          console.groupEnd();
+        }
+      }
+
+      console.group("OCR engine: Tesseract");
+      setStatus("Running OCR...");
+      updateProgress(50);
+      const worker = await getWorker();
+      const { data } = await worker.recognize(canvas);
+      const words = (data.words || []).filter((w) => (w.text || "").trim().length > 0 && w.bbox);
+      console.log(`Tesseract words detected: ${words.length}`);
+      console.groupEnd();
+      return {
+        words,
+        engine: "tesseract",
+        fallback: useFlorenceOcr,
+        florence_preview: "",
+      };
+    }
+
+    async function getFaceLandmarker() {
+      faceLandmarkerPromise ??= (async () => {
+        const mp = await import("https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14");
+        const vision = await mp.FilesetResolver.forVisionTasks(
+          "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm",
+        );
+        return mp.FaceLandmarker.createFromOptions(vision, {
+          baseOptions: {
+            modelAssetPath:
+              "https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task",
+          },
+          runningMode: "IMAGE",
+          numFaces: 5,
+          outputFaceBlendshapes: false,
+          outputFaceTransformationMatrixes: false,
+        });
+      })();
+      return faceLandmarkerPromise;
+    }
+
+    const LEFT_EYE_INDICES = [33, 133, 159, 145, 160, 144, 158, 153];
+    const RIGHT_EYE_INDICES = [362, 263, 386, 374, 385, 380, 387, 373];
+
+    function eyeRectFromLandmarks(landmarks, indices, width, height) {
+      const points = indices
+        .map((idx) => landmarks[idx])
+        .filter((point) => point && Number.isFinite(point.x) && Number.isFinite(point.y));
+      if (points.length < 3) return null;
+
+      let minX = Infinity;
+      let minY = Infinity;
+      let maxX = -Infinity;
+      let maxY = -Infinity;
+      for (const point of points) {
+        const x = point.x * width;
+        const y = point.y * height;
+        minX = Math.min(minX, x);
+        minY = Math.min(minY, y);
+        maxX = Math.max(maxX, x);
+        maxY = Math.max(maxY, y);
+      }
+      const baseW = Math.max(4, maxX - minX);
+      const baseH = Math.max(4, maxY - minY);
+      const padX = baseW * 0.6 + 4;
+      const padY = baseH * 0.9 + 3;
+      const left = Math.max(0, minX - padX);
+      const top = Math.max(0, minY - padY);
+      const right = Math.min(width, maxX + padX);
+      const bottom = Math.min(height, maxY + padY);
+      if (right - left < 6 || bottom - top < 6) return null;
+      return { x: left, y: top, w: right - left, h: bottom - top };
+    }
+
+    async function detectEyeRedactionRects(sourceCanvas) {
+      try {
+        const faceLandmarker = await Promise.race([
+          getFaceLandmarker(),
+          new Promise((_, reject) => {
+            setTimeout(() => reject(new Error("MediaPipe init timeout")), 3500);
+          }),
+        ]);
+        const result = faceLandmarker.detect(sourceCanvas);
+        const faces = result?.faceLandmarks || [];
+        const rects = [];
+        for (const landmarks of faces) {
+          const left = eyeRectFromLandmarks(landmarks, LEFT_EYE_INDICES, sourceCanvas.width, sourceCanvas.height);
+          const right = eyeRectFromLandmarks(landmarks, RIGHT_EYE_INDICES, sourceCanvas.width, sourceCanvas.height);
+          if (left) rects.push(left);
+          if (right) rects.push(right);
+        }
+        return rects;
+      } catch (error) {
+        console.warn("MediaPipe eye detection unavailable:", error);
+        return [];
+      }
+    }
+
+    async function applyEyePostPass(debugTargets) {
+      if (!currentImage || !canvas.width || !canvas.height) return;
+      const eyeRects = await detectEyeRedactionRects(canvas);
+      if (eyeRects.length === 0) return;
+
+      const startCount = redactionBoxes.length;
+      for (const rect of eyeRects) {
+        redactionBoxes.push({
+          x: Math.max(0, rect.x - 2),
+          y: Math.max(0, rect.y - 2),
+          w: rect.w + 4,
+          h: rect.h + 4,
+          color: redactionColorInput.value || "#000000",
+          categoryKey: "private_face_eye",
+        });
+        debugTargets.push({
+          category: "private_face_eye",
+          matchedWord: "eye_region",
+          entityWord: "face_eye",
+          bbox: { x: rect.x, y: rect.y, w: rect.w, h: rect.h },
+        });
+      }
+
+      const eyeEntities = eyeRects.map((_, idx) => ({
+        entity_group: "private_face_eye",
+        score: 1,
+        word: `eye_region_${idx + 1}`,
+      }));
+      latestEntities = [...latestEntities, ...eyeEntities];
+      renderCategoryCounts(computeCategoryCounts(latestEntities));
+
+      if (selectedBoxIndex < 0) {
+        selectBox(startCount);
+      } else {
+        renderRedactionBoxes();
+      }
+
+      try {
+        const parsed = JSON.parse(output.textContent || "{}");
+        parsed.entities = latestEntities;
+        parsed.eye_box_count = eyeRects.length;
+        parsed.redaction_box_count = redactionBoxes.length;
+        parsed.boxes = redactionBoxes;
+        output.textContent = JSON.stringify(parsed, null, 2);
+      } catch {
+        // Keep existing output as-is if parsing fails.
+      }
+      console.log(`Eye post-pass added ${eyeRects.length} region(s).`);
     }
 
     function buildSampleImage(lines, title, tag) {
@@ -1125,14 +1419,14 @@
       updateProgress(0);
 
       try {
-        setStatus("Loading OCR worker...");
-        updateProgress(25);
-        const worker = await getWorker();
-
-        setStatus("Running OCR...");
-        updateProgress(50);
-        const { data } = await worker.recognize(canvas);
-        const ocrWords = (data.words || []).filter((w) => (w.text || "").trim().length > 0 && w.bbox);
+        if (!useFlorenceOcr) {
+          setStatus("Loading OCR worker...");
+          updateProgress(25);
+          await getWorker();
+        }
+        const ocrResult = await recognizeWithSelectedOcr();
+        const ocrWords = ocrResult.words;
+        console.log(`OCR selected engine: ${ocrResult.engine}${ocrResult.fallback ? " (Florence fallback)" : ""}`);
 
         const wordMap = buildWordMap(ocrWords);
         setStatus("Detecting privacy entities...");
@@ -1141,7 +1435,6 @@
         const modelEntities = await classifier(wordMap.text, { aggregation_strategy: "simple" });
         const heuristicEntities = heuristicPersonEntities(wordMap.text);
         const entities = [...modelEntities, ...heuristicEntities];
-        latestEntities = entities;
         const beforeText = wordMap.text;
         const afterWords = ocrWords.map((w) => String(w.text || ""));
         const debugOriginal = [];
@@ -1175,6 +1468,8 @@
             });
           }
         }
+
+        latestEntities = entities;
         const afterText = afterWords.join(" ");
 
         drawImage(currentImage);
@@ -1191,6 +1486,9 @@
 
         output.textContent = JSON.stringify({
           entities,
+          ocr_engine: ocrResult.engine,
+          ocr_fallback_from_florence: ocrResult.fallback,
+          florence_generated_preview: ocrResult.florence_preview,
           ocr_word_count: ocrWords.length,
           redaction_box_count: redactionBoxes.length,
           boxes: redactionBoxes,
@@ -1213,6 +1511,7 @@
         updateProgress(100);
         setStatus(`Done. Redacted ${redactionBoxes.length} region(s).`);
         downloadBtn.disabled = false;
+        void applyEyePostPass(debugTargets);
       } catch (error) {
         console.error(error);
         setStatus(`Error: ${error.message}`);
@@ -1230,6 +1529,16 @@
     });
 
     runButton.addEventListener("click", processRedaction);
+    accurateOcrButton.addEventListener("click", async () => {
+      useFlorenceOcr = true;
+      accurateOcrButton.textContent = "Florence mode enabled";
+      accurateOcrButton.disabled = true;
+      console.log("Florence mode enabled by user. Next run will attempt Florence-2 OCR first.");
+      if (currentImage && !runButton.disabled) {
+        console.log("Re-running redaction immediately using Florence-first OCR mode...");
+        await processRedaction();
+      }
+    });
     downloadBtn.addEventListener("click", () => {
       if (!currentImage) return;
       const offscreen = document.createElement("canvas");
