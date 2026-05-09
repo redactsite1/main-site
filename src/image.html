@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Image Privacy Redaction</title>
+  <title>REDACT.SITE - FREE privacy-first redaction for text, images, audio, and PDFs</title>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
   <style>
     :root {
@@ -37,6 +37,17 @@
     }
 
     * { box-sizing: border-box; }
+    .seo-hidden {
+      position: absolute !important;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      white-space: nowrap;
+      border: 0;
+    }
     body {
       margin: 0;
       min-height: 100vh;
@@ -86,12 +97,33 @@
       vertical-align: super;
       margin-left: 2px;
     }
+    .brand-a-wrap {
+      position: relative;
+      display: inline-block;
+    }
+    .brand-a-redact {
+      position: absolute;
+      left: -0.04em;
+      right: -0.04em;
+      top: 46%;
+      height: 0.22em;
+      border-radius: 0.08em;
+      background: #ff1f1f;
+      transform: scaleX(0);
+      transform-origin: left;
+      animation: brandARedact 2.8s ease-in-out infinite;
+    }
+    @keyframes brandARedact {
+      0%, 22% { transform: scaleX(0); }
+      36%, 78% { transform: scaleX(1); }
+      100% { transform: scaleX(0); }
+    }
 
     .site-banner-sub {
       margin: 10px 0 0;
       color: var(--text);
       font: 800 clamp(0.8rem, 2vw, 1rem)/1.4 Arial, Helvetica, sans-serif;
-      text-transform: uppercase;
+      /* text-transform: uppercase; */
       letter-spacing: 0.03em;
     }
 
@@ -188,12 +220,14 @@
     }
     .help-card {
       width: min(560px, 100%);
+      max-height: min(82vh, 760px);
       border: 3px solid var(--border);
       border-radius: var(--radius);
       background: var(--card-bg);
       color: var(--text);
       box-shadow: var(--shadow-hard);
       padding: 18px 18px 14px;
+      overflow-y: auto;
     }
     .help-actions { display: flex; justify-content: flex-end; }
 
@@ -261,6 +295,123 @@
       text-transform: uppercase;
       box-shadow: 5px 5px 0 var(--accent-2);
     }
+    .how-anim {
+      scale: .7;
+      margin: 0 0 14px;
+      padding: 12px;
+      border: 2px solid var(--border);
+      border-radius: 10px;
+      background: var(--panel);
+      box-shadow: 4px 4px 0 var(--accent-2);
+      max-width: 620px;
+    max-width: 300px;
+    height: 350px;
+    }
+    .how-doc-line {
+      position: relative;
+      margin: 8px 0;
+      padding: 7px 10px;
+      border: 1px solid rgba(0, 0, 0, 0.16);
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.7);
+      font: 700 0.78rem/1.3 Arial, Helvetica, sans-serif;
+      color: var(--text);
+      letter-spacing: 0.01em;
+      overflow: hidden;
+      white-space: nowrap;
+      text-overflow: ellipsis;
+    }
+    .how-doc-redact {
+      position: absolute;
+      top: 4px;
+      bottom: 4px;
+      border-radius: 6px;
+      background: #000000;
+      transform: scaleX(0);
+      transform-origin: left;
+      animation: redactReveal 3.2s infinite;
+    }
+    .how-doc-redact.delay-2 { animation-delay: 0.5s; }
+    .how-doc-redact.delay-3 { animation-delay: 1s; }
+    .how-face-row {
+      margin-top: 10px;
+      padding: 8px 10px;
+      border: 1px dashed rgba(0, 0, 0, 0.2);
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.5);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .how-face-label {
+      font: 700 0.68rem/1.2 Arial, Helvetica, sans-serif;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+      min-width: 88px;
+    }
+    .how-face {
+      position: relative;
+      width: 54px;
+      height: 66px;
+      border-radius: 28px 28px 24px 24px;
+      background: rgba(0, 0, 0, 0.35);
+      border: 1px solid rgba(0, 0, 0, 0.5);
+      box-shadow: inset 0 -8px 0 rgba(0, 0, 0, 0.08);
+      flex: 0 0 auto;
+    }
+    .how-face::before {
+      content: "";
+      position: absolute;
+      left: 50%;
+      bottom: -13px;
+      width: 38px;
+      height: 14px;
+      transform: translateX(-50%);
+      border-radius: 12px 12px 0 0;
+      background: rgba(0, 0, 0, 0.28);
+    }
+    .how-eye-censor {
+      position: absolute;
+      top: 23px;
+      width: 14px;
+      height: 7px;
+      border-radius: 4px;
+      background: #000;
+      transform: scaleX(0);
+      transform-origin: left;
+      animation: eyeCensorReveal 3.2s infinite;
+    }
+    .how-eye-censor.left { left: 11px; animation-delay: 0.55s; }
+    .how-eye-censor.right { right: 11px; animation-delay: 0.7s; }
+    .how-filler-row {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+      margin-top: 10px;
+    }
+    .how-filler-chip {
+      height: 8px;
+      border-radius: 999px;
+      background: linear-gradient(90deg, rgba(0, 0, 0, 0.14), rgba(0, 0, 0, 0.08));
+      animation: fillerPulse 1.8s ease-in-out infinite;
+    }
+    .how-filler-chip.w1 { width: 54px; }
+    .how-filler-chip.w2 { width: 76px; animation-delay: 0.18s; }
+    .how-filler-chip.w3 { width: 42px; animation-delay: 0.32s; }
+    .how-filler-chip.w4 { width: 64px; animation-delay: 0.46s; }
+    @keyframes redactReveal {
+      0%, 28% { transform: scaleX(0); }
+      42%, 100% { transform: scaleX(1); }
+    }
+    @keyframes eyeCensorReveal {
+      0%, 30% { transform: scaleX(0); }
+      45%, 100% { transform: scaleX(1); }
+    }
+    @keyframes fillerPulse {
+      0%, 100% { opacity: 0.35; }
+      50% { opacity: 0.8; }
+    }
 
     .loading-overlay[hidden] { display: none; }
     .loading-overlay {
@@ -274,6 +425,12 @@
     .loading-status {
       margin: 0 0 8px; color: var(--text); font: 800 0.9rem/1.35 Arial, Helvetica, sans-serif;
       text-transform: uppercase;
+    }
+    .loading-tip {
+      margin: 0 0 8px;
+      color: var(--muted);
+      font: 700 0.75rem/1.35 Arial, Helvetica, sans-serif;
+      text-transform: none;
     }
     .progress-wrap { margin: 0; }
     .progress-label { margin: 0 0 6px; color: var(--text); font: 700 13px/1.3 Consolas, monospace; }
@@ -517,14 +674,34 @@
       <button id="theme-toggle" class="mode-btn theme-toggle" type="button"><i class="fa-solid fa-moon" aria-hidden="true"></i> Dark</button>
     </div>
     <section class="site-banner" aria-label="Site banner">
-      <h1 class="site-banner-title">REDACT<span class="site-suffix">.SITE</span></h1>
+      <h1 class="site-banner-title">RED<span class="brand-a-wrap">A<span class="brand-a-redact" aria-hidden="true"></span></span>CT<span class="site-suffix">.SITE</span></h1>
       <p class="site-banner-sub">Privacy-first redaction for text, images, audio, and PDFs - Automatically censor and remove sensitive data locally. We keep it private and secure as  this runs with local AI model</p>
       <p class="site-banner-foot">Powered by OpenAI privacy filter model</p>
     </section>
     <section class="section-block" aria-label="How it works section">
       <h2 class="section-title">How it works?</h2>
-      <div class="offline-pill">Offline-first OCR + redaction (after first download)</div>
-      <p>Upload an image, detect sensitive words, and redact before sharing to AI tools or chats.</p>
+      <div class="offline-pill">Offline-first OCR + image privacy protection</div>
+      <div class="how-anim" aria-hidden="true">
+        <div class="how-doc-line">Name: John Doe<span class="how-doc-redact" style="left:62px; width:96px;"></span></div>
+        <div class="how-doc-line">Account Number: 12312<span class="how-doc-redact delay-2" style="left:132px; width:74px;"></span></div>
+        <div class="how-doc-line">Address: 43, Street 9, California<span class="how-doc-redact delay-3" style="left:74px; width:184px;"></span></div>
+        <div class="how-face-row">
+          <span class="how-face-label">Face eye mask</span>
+          <div class="how-face">
+            <span class="how-eye-censor left"></span>
+            <span class="how-eye-censor right"></span>
+          </div>
+        </div>
+        <div class="how-filler-row">
+          <span class="how-filler-chip w1"></span>
+          <span class="how-filler-chip w2"></span>
+          <span class="how-filler-chip w3"></span>
+          <span class="how-filler-chip w4"></span>
+          <span class="how-filler-chip w2"></span>
+          <span class="how-filler-chip w1"></span>
+        </div>
+      </div>
+      <p>Redact.site automatically detects and removes PII, private words, and eye regions from images in your browser. Client‑side image redaction with zero uploads for fast, private sharing.  You can download the redacted version.</p>
     </section>
 
     <section class="section-block" aria-label="Input section">
@@ -580,9 +757,11 @@
     </div>
     </section>
   </main>
+  <div class="seo-hidden" aria-hidden="true">hidden keyword: FREE privacy redaction, FREE pii masking, FREE text image audio pdf redact, local ai model, client-side secure</div>
   <div id="loading-overlay" class="loading-overlay" hidden>
     <div class="loading-card" role="status" aria-live="polite">
       <p id="loading-status" class="loading-status">Loading...</p>
+      <p class="loading-tip">First-time model download may take longer. Next runs are faster from local cache.</p>
       <div class="progress-wrap">
         <p id="progress-label" class="progress-label">Progress: 0%</p>
         <div class="progress-track" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
@@ -594,8 +773,34 @@
   <button id="help-fab" class="help-fab" type="button" aria-label="Open info dialog">?</button>
   <div id="help-modal" class="help-modal" hidden>
     <div class="help-card" role="dialog" aria-modal="true" aria-labelledby="help-title">
-      <h3 id="help-title">What is this?</h3>
-      <p>Image mode detects and redacts PII locally in your browser before sharing.</p>
+      <h3 id="help-title">About this tool</h3>
+      <p>This tool redacts private information directly in your browser. It is built for quick, client-side masking so you can remove sensitive data before sharing notes, emails, logs, or uploads.</p>
+      <p><strong>Supported formats</strong></p>
+      <ul>
+        <li>Text</li>
+        <li>Images</li>
+        <li>PDFs</li>
+        <li>Audio</li>
+      </ul>
+      <p><strong>What it detects and redacts</strong></p>
+      <ul>
+        <li>Names</li>
+        <li>Physical addresses</li>
+        <li>Email addresses</li>
+        <li>Phone numbers</li>
+        <li>URLs and sensitive links</li>
+        <li>Dates (including birthdates)</li>
+        <li>Account numbers and financial IDs</li>
+        <li>API keys, passwords, and secrets</li>
+        <li>Private words and custom sensitive terms</li>
+        <li>Face and eye regions in images</li>
+      </ul>
+      <p><strong>How it works</strong></p>
+      <p>All processing runs client-side in your browser. Files and data are not uploaded to any server. The tool automatically scans content, highlights detected items, and replaces or masks them so you can download a redacted copy.</p>
+      <p><strong>Privacy and security</strong></p>
+      <p>No signup, no cloud uploads, and no external storage. Everything happens locally for maximum privacy and compliance.</p>
+      <p><strong>Need help or custom options</strong></p>
+      <p>For bulk redaction, workspace installation, or custom rules, contact <a href="mailto:seanlon@redact.site">seanlon@redact.site</a>.</p>
       <div class="help-actions"><button id="close-help" type="button">Close</button></div>
     </div>
   </div>
