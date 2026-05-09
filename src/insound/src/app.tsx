@@ -10,7 +10,7 @@ import { routes } from './routes';
 
 const App: React.FC = () => {
   return (
-    <Router>
+    <Router basename="/insound">
       {/*<AuthProvider>*/}
       {/*<RouteGuard>*/}
       <IntersectObserver />
