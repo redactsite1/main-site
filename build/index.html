@@ -75,6 +75,12 @@
       gap: 8px;
     }
 
+    .mode-link {
+      color: inherit;
+      text-decoration: none;
+      cursor: pointer;
+    }
+
     .mode-btn.active {
       background: var(--accent);
       box-shadow: 6px 6px 0 var(--accent-2);
@@ -347,10 +353,10 @@
 <body>
   <main>
     <div class="mode-switcher" aria-label="Input mode switcher">
-      <button class="mode-btn active" type="button" aria-pressed="true"><i class="fa-solid fa-font" aria-hidden="true"></i> Text</button>
-      <button class="mode-btn" type="button" aria-pressed="false"><i class="fa-solid fa-file-pdf" aria-hidden="true"></i> PDF</button>
-      <button class="mode-btn" type="button" aria-pressed="false"><i class="fa-solid fa-image" aria-hidden="true"></i> Image</button>
-      <button class="mode-btn" type="button" aria-pressed="false"><i class="fa-solid fa-music" aria-hidden="true"></i> Sound</button>
+      <a class="mode-btn mode-link active" href="/index.html" aria-current="page"><i class="fa-solid fa-font" aria-hidden="true"></i> Text</a>
+      <a class="mode-btn mode-link" href="/pdf.html"><i class="fa-solid fa-file-pdf" aria-hidden="true"></i> PDF</a>
+      <a class="mode-btn mode-link" href="/image.html"><i class="fa-solid fa-image" aria-hidden="true"></i> Image</a>
+      <a class="mode-btn mode-link" href="/insound/index.html"><i class="fa-solid fa-music" aria-hidden="true"></i> Sound</a>
     </div>
     <h2> 100% Offline Secure, No Data is stored in server, Just in your computer locally</h2>
     <h1>WebGPU Privacy Redaction</h1>

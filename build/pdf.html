@@ -15,6 +15,7 @@
     .mode-switcher { display:flex; gap:10px; margin-bottom:12px; flex-wrap:wrap; }
     .mode-btn { border:2px solid #130000; padding:10px 14px; background:#fff6b8; color:#130000; font:800 .85rem/1 Arial, Helvetica, sans-serif; text-transform:uppercase; box-shadow:4px 4px 0 #130000; display:inline-flex; align-items:center; gap:8px; margin:0; cursor:default; }
     .mode-btn.active { background:var(--accent); box-shadow:6px 6px 0 var(--accent-2); }
+    .mode-link { color: inherit; text-decoration: none; cursor: pointer; }
     .offline-pill { width: 100%; margin-bottom: 12px; display:inline-block; margin-bottom:8px; padding:8px 12px; border:2px solid #130000; background:var(--accent); color:#130000; font-size:.9rem; text-transform:uppercase; box-shadow:5px 5px 0 var(--accent-2); }
     .toolbar { display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin:14px 0; }
     button, .upload-label { border:2px solid #000; padding:11px 16px; background:var(--accent); color:#000; font:800 .86rem/1 Arial, Helvetica, sans-serif; text-transform:uppercase; letter-spacing:.04em; box-shadow:6px 6px 0 var(--accent-2); cursor:pointer; margin:0; display:inline-flex; align-items:center; gap:8px; }
@@ -61,10 +62,10 @@
 <body>
   <main>
     <div class="mode-switcher" aria-label="Input mode switcher">
-      <button class="mode-btn" type="button"><i class="fa-solid fa-font"></i> Text</button>
-      <button class="mode-btn active" type="button"><i class="fa-solid fa-file-pdf"></i> PDF</button>
-      <button class="mode-btn" type="button"><i class="fa-solid fa-image"></i> Image</button>
-      <button class="mode-btn" type="button"><i class="fa-solid fa-music"></i> Sound</button>
+      <a class="mode-btn mode-link" href="/index.html"><i class="fa-solid fa-font"></i> Text</a>
+      <a class="mode-btn mode-link active" href="/pdf.html" aria-current="page"><i class="fa-solid fa-file-pdf"></i> PDF</a>
+      <a class="mode-btn mode-link" href="/image.html"><i class="fa-solid fa-image"></i> Image</a>
+      <a class="mode-btn mode-link" href="/insound/index.html"><i class="fa-solid fa-music"></i> Sound</a>
     </div>  <p><br/></p>
     <h2> 100% Offline Secure, No Data is stored in server, Just in your computer locally</h2>
 
