@@ -6,35 +6,46 @@
   <title>100% Offline WebGPU -  PDF Privacy Redaction</title>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
   <style>
-    :root { color-scheme: light; --bg:#ffffff; --panel:#ffffff; --text:#130000; --muted:#5a3a00; --accent:#ffe600; --accent-2:#ff1f1f; --border:#130000; }
+    :root { color-scheme: light; --bg:#fffdf0; --panel:#ffffff; --text:#130000; --muted:#5a3a00; --accent:#ffe600; --accent-2:#f18e8a; --border:#130000; --radius:10px; --shadow-soft:0 12px 24px rgba(19,0,0,.15); --shadow-hard:5.8px 5.8px 0 var(--accent-2); --card-bg:#fffdf5; --overlay:rgba(19,0,0,.45); }
+    :root[data-theme="dark"] { color-scheme: dark; --bg:#120012; --panel:#1a1024; --text:#f8f7ff; --muted:#d3c8ea; --accent:#14bdb7; --accent-2:#661055; --border:#f8f7ff; --shadow-soft:0 14px 30px rgba(0,0,0,.45); --shadow-hard:5.8px 5.8px 0 var(--accent-2); --card-bg:#221532; --overlay:rgba(0,0,0,.6); }
     * { box-sizing: border-box; }
     body { margin:0; min-height:100vh; background:var(--bg); color:var(--text); font-family:"Arial Black", Arial, Helvetica, sans-serif; padding:24px; }
-    main { width:min(1200px,100%); margin:0 auto; padding:22px; border:1px solid var(--border); background:var(--panel); box-shadow:12px 12px 0 var(--accent-2); }
+    main { width:min(1200px,100%); margin:0 auto; padding:22px; border:1px solid var(--border); border-radius:var(--radius); background:var(--panel); box-shadow:var(--shadow-hard); }
     h1 { margin:0 0 8px; font-size:clamp(2rem,6vw,4rem); line-height:1; text-transform:uppercase; }
+    .site-banner { border:3px solid var(--border); border-radius:var(--radius); background:var(--accent); box-shadow:var(--shadow-hard); padding:14px 16px 12px; margin:0 0 22px; }
+    .site-banner-title { margin:0; color:var(--text); font:900 clamp(2rem,8vw,4.6rem)/1 "Arial Black", Arial, Helvetica, sans-serif; text-transform:uppercase; letter-spacing:.05em; text-shadow:2px 2px 0 #ffffff, 5px 5px 0 var(--accent-2); }
+    .site-banner-sub { margin:10px 0 0; color:var(--text); font:800 clamp(.8rem,2vw,1rem)/1.4 Arial, Helvetica, sans-serif; text-transform:uppercase; letter-spacing:.03em; }
+    .site-banner-foot { margin:8px 0 0; color:var(--muted); font:700 .62rem/1.2 Arial, Helvetica, sans-serif; text-transform:uppercase; letter-spacing:.05em; }
     p { margin:0 0 10px; color:var(--muted); font-family:Arial, Helvetica, sans-serif; font-weight:700; }
-    .mode-switcher { display:flex; gap:10px; margin-bottom:12px; flex-wrap:wrap; }
-    .mode-btn { border:2px solid #130000; padding:10px 14px; background:#fff6b8; color:#130000; font:800 .85rem/1 Arial, Helvetica, sans-serif; text-transform:uppercase; box-shadow:4px 4px 0 #130000; display:inline-flex; align-items:center; gap:8px; margin:0; cursor:default; }
+    .mode-switcher { display:flex; gap:10px; margin-bottom:18px; flex-wrap:wrap; }
+    .mode-btn { border:2px solid var(--border); border-radius:999px; padding:10px 14px; background:#fff6b8; color:var(--text); font:800 .85rem/1 Arial, Helvetica, sans-serif; text-transform:uppercase; box-shadow:4px 4px 0 var(--border); display:inline-flex; align-items:center; gap:8px; margin:0; cursor:default; }
     .mode-btn.active { background:var(--accent); box-shadow:6px 6px 0 var(--accent-2); }
-    .mode-link { color: inherit; text-decoration: none; cursor: pointer; }
-    .offline-pill { width: 100%; margin-bottom: 12px; display:inline-block; margin-bottom:8px; padding:8px 12px; border:2px solid #130000; background:var(--accent); color:#130000; font-size:.9rem; text-transform:uppercase; box-shadow:5px 5px 0 var(--accent-2); }
-    .toolbar { display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin:14px 0; }
-    button, .upload-label { border:2px solid #000; padding:11px 16px; background:var(--accent); color:#000; font:800 .86rem/1 Arial, Helvetica, sans-serif; text-transform:uppercase; letter-spacing:.04em; box-shadow:6px 6px 0 var(--accent-2); cursor:pointer; margin:0; display:inline-flex; align-items:center; gap:8px; }
+    .mode-link {  background: var(--accent); color: inherit; text-decoration: none; cursor: pointer; }
+    .theme-toggle { margin-left: auto; background: var(--accent); }
+    .section-block {
+      background: var(--card-bg); margin-top:24px; padding:14px; border:2px solid var(--border); border-radius:12px; background:var(--card-bg); box-shadow:6px 6px 0 var(--accent-2); }
+    .section-title { margin:0 0 10px; color:var(--text); font:900 clamp(1.25rem,2.8vw,1.8rem)/1.1 "Arial Black", Arial, Helvetica, sans-serif; text-transform:uppercase; letter-spacing:.03em; }
+    .offline-pill { width: 100%; margin-bottom: 16px; display:inline-block; padding:8px 12px; border:2px solid var(--border); border-radius:999px; background:var(--accent); color:var(--text); font-size:.9rem; text-transform:uppercase; box-shadow:5px 5px 0 var(--accent-2); }
+    .toolbar { display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin:16px 0 20px; }
+    button, .upload-label { border:2px solid var(--border); border-radius:12px; padding:11px 16px; background:var(--accent); color:var(--text); font:800 .86rem/1 Arial, Helvetica, sans-serif; text-transform:uppercase; letter-spacing:.04em; box-shadow:6px 6px 0 var(--accent-2); cursor:pointer; margin:0; display:inline-flex; align-items:center; gap:8px; }
     button:disabled { opacity:.65; cursor:wait; }
     #file-input { display:none; }
     .text-small { font-size: small; }
-    .status { margin-top:8px; min-height:1.4em; color:var(--muted); }
-    .progress-wrap { margin:8px 0 14px; }
-    .progress-wrap.is-hidden { display: none; }
+    .loading-overlay[hidden] { display: none; }
+    .loading-overlay { position: fixed; inset: 0; background: var(--overlay); display: grid; place-items: center; z-index: 1004; padding: 20px; }
+    .loading-card { width: min(520px, 100%); border: 3px solid var(--border); border-radius: var(--radius); background: var(--card-bg); box-shadow: var(--shadow-hard); padding: 16px; }
+    .loading-status { margin: 0 0 8px; color: var(--text); font: 800 0.9rem/1.35 Arial, Helvetica, sans-serif; text-transform: uppercase; }
+    .progress-wrap { margin: 0; }
     .progress-label { margin:0 0 6px; color:var(--text); font:700 13px/1.3 Consolas, monospace; }
     .progress-track { width:100%; height:10px; background:#ffdede; border:1px solid var(--border); overflow:hidden; }
-    .progress-fill { width:0%; height:100%; background:linear-gradient(90deg,#ffe600,#ff1f1f); transition:width 240ms ease; }
-    .workspace-grid { display:grid; grid-template-columns:minmax(0,1fr) 250px; gap:16px; align-items:start; }
-    .preview-wrap { border:3px solid #130000; background:#fffdf5; box-shadow:8px 8px 0 var(--accent), 14px 14px 0 var(--accent-2); padding:10px; overflow:auto; max-height:68vh; }
+    .progress-fill { width:0%; height:100%; background:linear-gradient(90deg,var(--accent),var(--accent-2)); transition:width 240ms ease; }
+    .workspace-grid { display:grid; grid-template-columns:minmax(0,1fr) 250px; gap:24px; align-items:start; margin-top:18px; }
+    .preview-wrap { border:3px solid var(--border); border-radius:12px; background:var(--card-bg); box-shadow:8px 8px 0 var(--accent), 14px 14px 0 var(--accent-2); padding:10px; overflow:auto; max-height:68vh; }
     .pdf-page-stage { position: relative; display: inline-block; line-height: 0; margin: 0 auto 12px; }
-    .pdf-preview-page { border:1px solid #130000; display:block; margin:0 auto 12px; background:white; max-width:100%; height:auto; }
+    .pdf-preview-page { border:1px solid var(--border); display:block; margin:0 auto 12px; background:var(--panel); max-width:100%; height:auto; }
     .pdf-page-stage .pdf-preview-page { margin: 0; }
     .page-overlay { position: absolute; inset: 0; pointer-events: auto; }
-    .redaction-box { position: absolute; border: 2px solid #fff; outline: 1px solid #130000; background: #000; cursor: grab; }
+    .redaction-box { position: absolute; border: 2px solid #fff; outline: 1px solid var(--border); background: #000; cursor: grab; }
     .redaction-box.selected { outline: 3px dashed #ffe600; }
     .redaction-box.highlight { background: #ff1f1f; }
     .redaction-resize {
@@ -43,21 +54,33 @@
       height: 12px;
       right: -6px;
       bottom: -6px;
-      background: #fff;
-      border: 1px solid #130000;
+      background: var(--panel);
+      border: 1px solid var(--border);
       cursor: nwse-resize;
     }
-    .category-panel { border:2px solid #130000; background:#fff6b8; box-shadow:6px 6px 0 var(--accent-2); padding:10px; position:sticky; top:10px; }
+    .category-panel { border:2px solid var(--border); border-radius:12px; background:var(--card-bg); box-shadow:6px 6px 0 var(--accent-2); padding:14px; position:sticky; top:10px; }
     .category-panel h3 { margin:0 0 8px; font-size:.95rem; text-transform:uppercase; letter-spacing:.03em; }
     .category-list { display:grid; gap:8px; }
-    .category-item { width:100%; border:2px solid #130000; background:#fffdf5; color:#130000; padding:8px; display:flex; justify-content:space-between; align-items:center; font:700 .78rem/1.2 Arial, Helvetica, sans-serif; cursor:pointer; text-transform:uppercase; margin:0; box-shadow:none; }
+    .category-item { width:100%; border:2px solid var(--border); border-radius:10px; background:var(--panel); color:var(--text); padding:8px; display:flex; justify-content:space-between; align-items:center; font:700 .78rem/1.2 Arial, Helvetica, sans-serif; cursor:pointer; text-transform:uppercase; margin:0; box-shadow:none; }
     .category-item.active { background:var(--accent); box-shadow:4px 4px 0 var(--accent-2); }
-    .category-short { margin-top:8px; min-height:1.2em; color:#130000; font:800 .78rem/1.2 Arial, Helvetica, sans-serif; text-transform:uppercase; word-break:break-word; }
-    details { margin-top:16px; border:2px solid #130000; background:#fff6b8; box-shadow:6px 6px 0 var(--accent-2); }
+    .category-short { margin-top:8px; min-height:1.2em; color:var(--text); font:800 .78rem/1.2 Arial, Helvetica, sans-serif; text-transform:uppercase; word-break:break-word; }
+    details { margin-top:16px; border:2px solid var(--border); border-radius:12px; background:var(--card-bg); box-shadow:6px 6px 0 var(--accent-2); }
     summary { cursor:pointer; padding:10px 12px; font-weight:700; }
-    pre { margin:0; padding:12px; white-space:pre-wrap; overflow:auto; font:700 13px/1.5 Arial, Helvetica, sans-serif; color:#130000; }
+    pre { margin:0; padding:12px; white-space:pre-wrap; overflow:auto; font:700 13px/1.5 Arial, Helvetica, sans-serif; color:var(--text); }
+    .help-fab { position: fixed; right: 22px; bottom: 22px; width: 58px; height: 58px; border: 2px solid var(--border); border-radius: 50%; background: var(--accent); color: var(--text); font: 900 26px/1 Arial, Helvetica, sans-serif; cursor: pointer; box-shadow: 6px 6px 0 var(--accent-2); z-index: 1000; }
+    .help-modal[hidden] { display: none; }
+    .help-modal { position: fixed; inset: 0; background: var(--overlay); display: grid; place-items: center; z-index: 1001; padding: 20px; }
+    .help-card { width: min(560px, 100%); border: 3px solid var(--border); border-radius: var(--radius); background: var(--card-bg); color: var(--text); box-shadow: 12px 12px 0 var(--accent-2); padding: 18px 18px 14px; }
+    .help-actions { display:flex; justify-content:flex-end; }
     @media (max-width:980px){ .workspace-grid { grid-template-columns:1fr; } .category-panel { position:static; } }
   </style>
+  <!-- Google Tag Manager -->
+  <script>(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
+  new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
+  j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
+  'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
+  })(window,document,'script','dataLayer','GTM-WTTD6SZF');</script>
+  <!-- End Google Tag Manager -->
 </head>
 <body>
   <main>
@@ -66,56 +89,85 @@
       <a class="mode-btn mode-link active" href="/pdf.html" aria-current="page"><i class="fa-solid fa-file-pdf"></i> PDF</a>
       <a class="mode-btn mode-link" href="/image.html"><i class="fa-solid fa-image"></i> Image</a>
       <a class="mode-btn mode-link" href="/insound/index.html"><i class="fa-solid fa-music"></i> Sound</a>
-    </div>  <p><br/></p>
-    <h2> 100% Offline Secure, No Data is stored in server, Just in your computer locally</h2>
-
-    <h1> <span class="text-small">100% Offline WebGPU </span><br/> 🛡️ Privacy Redaction for 🗎 PDF (Powered by OpenAI Privacy filter)</h1>
-    <p><br/></p>  <p><br/></p>
-    <div class="offline-pill">Upload PDF -> detect privacy -> redact -> download</div>
-    <p><br/></p>
-    <!-- <p>Upload-only flow (no sample PDF). Text regions are blacked out while logo and layout remain.</p> -->
-    <div class="toolbar">
+      <button id="theme-toggle" class="mode-btn theme-toggle" type="button"><i class="fa-solid fa-moon" aria-hidden="true"></i> Dark</button>
+    </div>
+    <section class="site-banner" aria-label="Site banner">
+      <h1 class="site-banner-title">REDACT.SITE</h1>
+      <p class="site-banner-sub">No signup, no paywall, client-side offline processing, 100% secure, local model.</p>
+      <p class="site-banner-foot">Powered by OpenAI privacy filter model</p>
+    </section>
+    <section class="section-block" aria-label="How it works section">
+      <h2 class="section-title">How it works?</h2>
+      <div class="offline-pill">Upload PDF -> detect privacy -> redact -> download</div>
+      <p>Redact sensitive text from PDFs locally before sharing to external AI or chat services.</p>
+    </section>
+    <section class="section-block" aria-label="Input section">
+      <h2 class="section-title">Upload PDF to redact</h2>
+      <div class="toolbar">
       <label for="file-input" class="upload-label"><i class="fa-solid fa-upload"></i>1. Upload PDF</label>
       <input id="file-input" type="file" accept="application/pdf">
       <button id="run-redact" type="button"><i class="fa-solid fa-user-shield"></i> 2. Detect + Redact PDF</button>
       <button id="download-btn" type="button" disabled><i class="fa-solid fa-download"></i> 3. Download redacted PDF</button>
     </div>
-    <p><br/></p>
-    <div id="status" class="status">Ready. Upload a PDF file.</div>
-    <div class="progress-wrap is-hidden" aria-live="polite">
-      <p id="progress-label" class="progress-label">Progress: 0%</p>
-      <div class="progress-track" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><div id="progress-fill" class="progress-fill"></div></div>
-    </div>
-    <div class="workspace-grid">
+    </section>
+    <section id="results-section" class="section-block" aria-label="Result section" hidden>
+      <h2 class="section-title">Result section</h2>
+      <div id="results-grid" class="workspace-grid">
       <div>
         <div id="preview-wrap" class="preview-wrap"></div>
         <br/><br/><br/>
-        <details>
+        <details id="detection-details" hidden>
           <summary>Detection Output (collapsed by default)</summary>
           <pre id="output"></pre>
         </details>
       </div>
-      <aside class="category-panel" aria-label="Privacy category counters">
+      <aside id="category-panel" class="category-panel" aria-label="Privacy category counters" hidden>
         <h3>Detected counts</h3>
         <div id="category-list" class="category-list"></div>
         <div id="category-short" class="category-short">Click a count to view detected words</div>
       </aside>
     </div>
+    </section>
   </main>
+  <button id="help-fab" class="help-fab" type="button" aria-label="Open info dialog">?</button>
+  <div id="help-modal" class="help-modal" hidden>
+    <div class="help-card" role="dialog" aria-modal="true" aria-labelledby="help-title">
+      <h3 id="help-title">What is this?</h3>
+      <p>PDF mode detects and redacts sensitive text regions directly in your browser.</p>
+      <div class="help-actions"><button id="close-help" type="button">Close</button></div>
+    </div>
+  </div>
+  <div id="loading-overlay" class="loading-overlay" hidden>
+    <div class="loading-card" role="status" aria-live="polite">
+      <p id="loading-status" class="loading-status">Loading...</p>
+      <div class="progress-wrap">
+        <p id="progress-label" class="progress-label">Progress: 0%</p>
+        <div class="progress-track" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><div id="progress-fill" class="progress-fill"></div></div>
+      </div>
+    </div>
+  </div>
   <script type="module">
 
     const fileInput = document.querySelector("#file-input");
     const runButton = document.querySelector("#run-redact");
     const downloadBtn = document.querySelector("#download-btn");
-    const statusEl = document.querySelector("#status");
+    const loadingOverlay = document.querySelector("#loading-overlay");
+    const loadingStatus = document.querySelector("#loading-status");
     const output = document.querySelector("#output");
     const progressLabel = document.querySelector("#progress-label");
     const progressFill = document.querySelector("#progress-fill");
     const progressTrack = document.querySelector(".progress-track");
-    const progressWrap = document.querySelector(".progress-wrap");
+    const resultsSection = document.querySelector("#results-section");
+    const resultsGrid = document.querySelector("#results-grid");
     const previewWrap = document.querySelector("#preview-wrap");
+    const categoryPanel = document.querySelector("#category-panel");
+    const detectionDetails = document.querySelector("#detection-details");
     const categoryList = document.querySelector("#category-list");
     const categoryShort = document.querySelector("#category-short");
+    const themeToggle = document.querySelector("#theme-toggle");
+    const helpFab = document.querySelector("#help-fab");
+    const helpModal = document.querySelector("#help-modal");
+    const closeHelp = document.querySelector("#close-help");
 
     let Tesseract;
     let pdfjsLib;
@@ -131,6 +183,19 @@
     let selectedBox = null;
     let interaction = null;
     let dependenciesReady = false;
+
+    function applyTheme(theme) {
+      document.documentElement.dataset.theme = theme;
+      const isDark = theme === "dark";
+      themeToggle.innerHTML = isDark
+        ? '<i class="fa-solid fa-sun" aria-hidden="true"></i> Light'
+        : '<i class="fa-solid fa-moon" aria-hidden="true"></i> Dark';
+    }
+    function initTheme() {
+      const stored = localStorage.getItem("redact-theme");
+      if (stored === "dark" || stored === "light") applyTheme(stored);
+      else applyTheme("light");
+    }
 
     /** External ESM bundles (CDN). */
     const TESSERACT_MODULE_URL = "https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.esm.min.js";
@@ -149,13 +214,13 @@
       { key: "sec", name: "Secret", short: "SEC" },
     ];
 
-    const setStatus = (m) => { statusEl.textContent = m; console.log(m); };
+    const setStatus = (m) => { loadingStatus.textContent = m; console.log(m); };
     function updateProgress(percent) {
       const clamped = Math.max(0, Math.min(100, percent));
       progressLabel.textContent = `Progress: ${clamped}%`;
       progressFill.style.width = `${clamped}%`;
       progressTrack.setAttribute("aria-valuenow", String(clamped));
-      progressWrap.classList.toggle("is-hidden", clamped === 0);
+      loadingOverlay.hidden = !(clamped > 0 && clamped < 100);
     }
     const emptyCategoryCounts = () => Object.fromEntries(CATEGORY_CONFIG.map((x) => [x.key, 0]));
     function renderCategoryCounts(counts) {
@@ -184,6 +249,11 @@
           .map((e) => String(e.word || "").trim())
           .filter(Boolean),
       )];
+    }
+
+    function showDetectionPanels() {
+      categoryPanel.hidden = false;
+      detectionDetails.hidden = false;
     }
 
     async function loadDependencies() {
@@ -791,6 +861,10 @@
       redactedPdfBytes = null;
       latestEntities = [];
       activeCategoryKey = "";
+      resultsSection.hidden = false;
+      resultsGrid.hidden = false;
+      categoryPanel.hidden = true;
+      detectionDetails.hidden = true;
       categoryShort.textContent = "Click a count to view detected words";
       renderCategoryCounts(emptyCategoryCounts());
       output.textContent = "";
@@ -829,6 +903,7 @@
         activeCategoryKey = "";
         categoryShort.textContent = "Click a count to view detected words";
         renderCategoryCounts(computeCategoryCounts(allEntities));
+        showDetectionPanels();
         output.textContent = JSON.stringify({
           pages: pageRenders.length,
           entities: allEntities,
@@ -952,8 +1027,24 @@
       renderAllBoxes();
     });
 
+    helpFab.addEventListener("click", () => { helpModal.hidden = false; });
+    closeHelp.addEventListener("click", () => { helpModal.hidden = true; });
+    helpModal.addEventListener("click", (event) => {
+      if (event.target === helpModal) helpModal.hidden = true;
+    });
+    themeToggle.addEventListener("click", () => {
+      const current = document.documentElement.dataset.theme === "dark" ? "dark" : "light";
+      const next = current === "dark" ? "light" : "dark";
+      applyTheme(next);
+      localStorage.setItem("redact-theme", next);
+    });
+    initTheme();
     renderCategoryCounts(emptyCategoryCounts());
   </script>
+  <!-- Google Tag Manager (noscript) -->
+  <noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-WTTD6SZF"
+  height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
+  <!-- End Google Tag Manager (noscript) -->
 </body>
 </html>
  
