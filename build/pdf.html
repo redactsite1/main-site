@@ -196,6 +196,7 @@ No signup, no paywall, completely FREE.    </p>
       <div class="scan-mode-wrap">
         <label for="scan-mode">Scan mode</label>
         <select id="scan-mode">
+          <option value="ultra_fast">Ultra Fast</option>
           <option value="fast">Fast</option>
           <option value="balanced" selected>Balanced</option>
           <option value="deep">Deep</option>
@@ -325,19 +326,29 @@ Transformer.js for client‑side scripting</p>
     let interaction = null;
     let dependenciesReady = false;
     let latestDebugPayload = null;
+    let tesseractWorkerPromise;
     const SCAN_MODE_CONFIG = {
+      ultra_fast: {
+        label: "Ultra Fast",
+        useFlorenceOcr: false,
+        ocr: { maxNewTokens: 0, tileEnabled: false, minWordsForNoTile: 9999, minLargeSide: 2000, tileCols: 1, tileRows: 1, overlap: 0.0, maxDim: 1000, stopAtWords: 90 },
+        eye: { maxDim: 1000, earlyReturnEyes: 1, tileEnabled: false, tileCols: 1, tileRows: 1, overlap: 0.0, stopAtEyes: 2 },
+      },
       fast: {
         label: "Fast",
+        useFlorenceOcr: true,
         ocr: { maxNewTokens: 900, tileEnabled: false, minWordsForNoTile: 9999, minLargeSide: 2000, tileCols: 1, tileRows: 1, overlap: 0.0, maxDim: 1200, stopAtWords: 120 },
         eye: { maxDim: 1100, earlyReturnEyes: 1, tileEnabled: false, tileCols: 1, tileRows: 1, overlap: 0.0, stopAtEyes: 3 },
       },
       balanced: {
         label: "Balanced",
+        useFlorenceOcr: true,
         ocr: { maxNewTokens: 1280, tileEnabled: true, minWordsForNoTile: 90, minLargeSide: 900, tileCols: 2, tileRows: 2, overlap: 0.2, maxDim: 1400, stopAtWords: 180 },
         eye: { maxDim: 1280, earlyReturnEyes: 2, tileEnabled: true, tileCols: 2, tileRows: 3, overlap: 0.2, stopAtEyes: 6 },
       },
       deep: {
         label: "Deep",
+        useFlorenceOcr: true,
         ocr: { maxNewTokens: 2048, tileEnabled: true, minWordsForNoTile: 140, minLargeSide: 700, tileCols: 3, tileRows: 3, overlap: 0.25, maxDim: 1800, stopAtWords: 320 },
         eye: { maxDim: 1400, earlyReturnEyes: 3, tileEnabled: true, tileCols: 3, tileRows: 4, overlap: 0.25, stopAtEyes: 10 },
       },
@@ -374,6 +385,7 @@ Transformer.js for client‑side scripting</p>
     const PDFJS_WORKER_URL = "https://cdn.jsdelivr.net/npm/pdfjs-dist@4.10.38/build/pdf.worker.mjs";
     const PDF_LIB_MODULE_URL = "https://cdn.jsdelivr.net/npm/pdf-lib@1.17.1/dist/pdf-lib.esm.min.js";
     const TRANSFORMERS_MODULE_URL = "https://cdn.jsdelivr.net/npm/@huggingface/transformers";
+    const TESSERACT_MODULE_URL = "https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.esm.min.js";
 
     const CATEGORY_CONFIG = [
       { key: "private_person", name: "Person", short: "PER" },
@@ -474,6 +486,14 @@ Transformer.js for client‑side scripting</p>
       })();
       return florenceOcrPromise;
     }
+    async function getTesseractWorker() {
+      tesseractWorkerPromise ??= (async () => {
+        const mod = await import(TESSERACT_MODULE_URL);
+        const worker = await mod.default.createWorker("eng");
+        return worker;
+      })();
+      return tesseractWorkerPromise;
+    }
     function parseFlorenceStructuredOcr(result) {
       const taskResult = result?.["<OCR_WITH_REGION>"];
       const labels = taskResult?.labels || [];
@@ -556,6 +576,27 @@ Transformer.js for client‑side scripting</p>
       return parseFlorenceStructuredOcr(structured);
     }
     async function recognizePdfPageWords(pageCanvas, pageNumber, scanConfig) {
+      if (scanConfig.useFlorenceOcr === false) {
+        setStatus("Running Tesseract OCR (Ultra Fast mode)...");
+        const worker = await getTesseractWorker();
+        const { data } = await worker.recognize(pageCanvas);
+        const words = (data?.words || [])
+          .filter((w) => String(w?.text || "").trim().length > 0 && w?.bbox)
+          .map((w) => ({
+            text: String(w.text || "").trim(),
+            bbox: {
+              x0: Number(w.bbox.x0) || 0,
+              y0: Number(w.bbox.y0) || 0,
+              x1: Number(w.bbox.x1) || 0,
+              y1: Number(w.bbox.y1) || 0,
+            },
+          }));
+        if (words.length === 0) {
+          throw new Error("Tesseract OCR returned no words for this page.");
+        }
+        console.log(`Tesseract OCR page ${pageNumber}: words=${words.length}`);
+        return { words, engine: "tesseract", fallback: false };
+      }
       setStatus("Running Florence-2 OCR with region...");
       const ocrCfg = scanConfig.ocr;
       const baseWords = await florenceWordsFromCanvas(pageCanvas, ocrCfg.maxNewTokens);
