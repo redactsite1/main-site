@@ -29,7 +29,7 @@
 # Browsers often request /favicon.ico; map to the PNG in publish root (build/favicon.png).
 [[redirects]]
   from = "/favicon.ico"
-  to = "/favicon.png"
+  to = "/favicon.ico"
   status = 302
 
 # Browsers often request /favicon.ico; map to the PNG in publish root (build/favicon.png).
