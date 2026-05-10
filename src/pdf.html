@@ -105,6 +105,21 @@
       border: 1px solid var(--border);
       cursor: nwse-resize;
     }
+    
+    .info-note {
+      margin: 0 0 8px;
+      padding: 10px 12px;
+      border: 2px solid var(--border);
+      border-radius: 12px;
+      background: var(--card-bg);
+      box-shadow: var(--shadow-soft);
+      color: var(--text);
+      font: 700 0.93rem/1.45 Arial, Helvetica, sans-serif;
+    }
+
+    .info-note code {
+      font-size: 0.82rem;
+    }
     .category-panel { border:2px solid var(--border); border-radius:12px; background:var(--card-bg); box-shadow:6px 6px 0 var(--accent-2); padding:14px; position:sticky; top:10px; }
     .category-panel h3 { margin:0 0 8px; font-size:.95rem; text-transform:uppercase; letter-spacing:.03em; }
     .category-list { display:grid; gap:8px; }
@@ -146,7 +161,9 @@ No signup, no paywall, completely FREE.    </p>
     </section>
     <section class="section-block" aria-label="How it works section">
       <h2 class="section-title">How it works?</h2>
-      <div class="offline-pill">Offline-first: This site redacts sensitive PII in your PDF before you share it anywhere. </div>
+      <div class="offline-pill">
+        Drop PDF to redact eyes, names, emails, and other private details. 
+      </div>
       <div class="how-anim" aria-hidden="true">
         <div class="how-doc-line">Name: John Doe<span class="how-doc-redact" style="left:62px; width:96px;"></span></div>
         <div class="how-doc-line">Account Number: 12312<span class="how-doc-redact delay-2" style="left:132px; width:74px;"></span></div>
@@ -167,8 +184,11 @@ No signup, no paywall, completely FREE.    </p>
           <span class="how-filler-chip w1"></span>
         </div>
       </div>
-      <p>Locally, detect images and ocr text to redact them before you share it anywhere. 
-        Censors also eyes regions to protect   privacy.</p>
+      <p class="info-note">
+        All processing happens locally in your browser, so nothing is uploaded or stored on our servers.<br/><br/>
+        Detect pdf content images and ocr text to redact them before you share it anywhere. <br/><br/>
+        Censors also eyes regions to protect privacy.
+      </p>
     </section>
     <section class="section-block" aria-label="Input section">
       <h2 class="section-title">Upload PDF to redact</h2>

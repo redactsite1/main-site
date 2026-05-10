@@ -391,6 +391,21 @@
       transform-origin: left;
       animation: eyeCensorReveal 3.2s infinite;
     }
+    
+    .info-note {
+      margin: 0 0 8px;
+      padding: 10px 12px;
+      border: 2px solid var(--border);
+      border-radius: 12px;
+      background: var(--card-bg);
+      box-shadow: var(--shadow-soft);
+      color: var(--text);
+      font: 700 0.93rem/1.45 Arial, Helvetica, sans-serif;
+    }
+
+    .info-note code {
+      font-size: 0.82rem;
+    }
     .how-eye-censor.left { left: 11px; animation-delay: 0.55s; }
     .how-eye-censor.right { right: 11px; animation-delay: 0.7s; }
     .how-filler-row {
@@ -690,7 +705,7 @@ No signup, no paywall, completely FREE.    </p>
     </section>
     <section class="section-block" aria-label="How it works section">
       <h2 class="section-title">How it works?</h2>
-      <div class="offline-pill">Offline-first OCR + image privacy protection</div>
+      <div class="offline-pill">Drop an image to remove names, emails, and other private details. </div>
       <div class="how-anim" aria-hidden="true">
         <div class="how-doc-line">Name: John Doe<span class="how-doc-redact" style="left:62px; width:96px;"></span></div>
         <div class="how-doc-line">Account Number: 12312<span class="how-doc-redact delay-2" style="left:132px; width:74px;"></span></div>
@@ -711,7 +726,10 @@ No signup, no paywall, completely FREE.    </p>
           <span class="how-filler-chip w1"></span>
         </div>
       </div>
-      <p>Redact.site automatically detects and removes PII, private words, and eye regions from images in your browser. Client‑side image redaction with zero uploads for fast, private sharing.  You can download the redacted version.</p>
+      <p class="info-note">All processing happens locally in your browser, so nothing is uploaded or stored on our servers.<br/>
+        <br/> Automatically detects and censors PII, private words, and eye regions from images .  
+         <br/><br/>
+         You can download the redacted version.</p>
     </section>
 
     <section class="section-block" aria-label="Input section">
