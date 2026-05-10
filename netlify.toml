@@ -26,17 +26,6 @@
   to = "/insound/index.html"
   status = 200
 
-# Browsers often request /favicon.ico; map to the PNG in publish root (build/favicon.png).
-# [[redirects]]
-#   from = "/favicon.ico"
-#   to = "/favicon.ico"
-#   status = 302
-
-# Browsers often request /favicon.ico; map to the PNG in publish root (build/favicon.png).
-# [[redirects]]
-#   from = "/favicon.png"
-#   to = "/favicon.png"
-#   status = 302
 
 # SPA fallback: unknown paths serve main shell (existing files under publish/ still win first).
 [[redirects]]
