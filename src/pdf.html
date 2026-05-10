@@ -31,7 +31,13 @@
     .mode-btn { border:2px solid var(--border); border-radius:999px; padding:10px 14px; background:#fff6b8; color:var(--text); font:800 .85rem/1 Arial, Helvetica, sans-serif; text-transform:uppercase; box-shadow:4px 4px 0 var(--border); display:inline-flex; align-items:center; gap:8px; margin:0; cursor:default; }
     .mode-btn.active { background:var(--accent); box-shadow:6px 6px 0 var(--accent-2); }
     .mode-link {  background: var(--accent); color: inherit; text-decoration: none; cursor: pointer; }
-    .theme-toggle { margin-left: auto; background: var(--accent); }
+    .theme-toggle {
+    position: absolute;
+    top: 10px;
+    border: 2px solid;
+    right: 10px;
+    opacity: .9;
+    cursor: pointer; margin-left: auto; background: var(--accent); }
     .section-block {
       background: var(--card-bg); margin-top:24px; padding:14px; border:2px solid var(--border); border-radius:12px; background:var(--card-bg); box-shadow:6px 6px 0 var(--accent-2); }
     .section-title { margin:0 0 10px; color:var(--text); font:900 clamp(1.25rem,2.8vw,1.8rem)/1.1 "Arial Black", Arial, Helvetica, sans-serif; text-transform:uppercase; letter-spacing:.03em; }
