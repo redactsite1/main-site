@@ -629,7 +629,17 @@ export function VoiceRedactionPage() {
             </p>
             <p className="font-semibold text-sm">Privacy and security</p>
             <p className="text-sm text-muted-foreground mb-3">
-              No signup, no cloud uploads, and no external storage. Everything happens locally for maximum privacy and compliance.
+              No signup, no cloud uploads, and no external storage. Everything happens locally for maximum privacy and compliance.<br/>This tool runs entirely in your browser using client‑side JavaScript AI models. Sensitive data is detected and redacted locally so  nothing is uploaded to a server. <br/> You may inspect the source code or network if you have doubt.<br/>
+<br/><br/>
+We combine:
+<br/>
+ONNX + Microsoft Florence‑2 for image OCR
+<br/>
+Google Tesseract for text recognition
+<br/>
+OpenAI Privacy Filter for PII detection
+<br/>
+Transformer.js for client‑side scripting
             </p>
             <p className="font-semibold text-sm">Need help or custom options</p>
             <p className="text-sm text-muted-foreground mb-4">
