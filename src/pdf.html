@@ -38,7 +38,7 @@
     right: 10px;
     opacity: .9;
     cursor: pointer; margin-left: auto; background: var(--accent); }
-    .section-block {
+    .section-block { overflow:scroll;
       background: var(--card-bg); margin-top:24px; padding:14px; border:2px solid var(--border); border-radius:12px; background:var(--card-bg); box-shadow:6px 6px 0 var(--accent-2); }
     .section-title { margin:0 0 10px; color:var(--text); font:900 clamp(1.25rem,2.8vw,1.8rem)/1.1 "Arial Black", Arial, Helvetica, sans-serif; text-transform:uppercase; letter-spacing:.03em; }
     .section-title-row { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:10px; }
@@ -879,15 +879,37 @@ Transformer.js for client‑side scripting</p>
       return words;
     }
     function buildWordMap(words) {
+      const items = [];
+      for (let i = 0; i < words.length; i++) {
+        const text = String(words[i]?.text || "").trim();
+        if (!text) continue;
+        const bbox = words[i]?.bbox || {};
+        const x0 = Number.isFinite(Number(bbox.x0)) ? Number(bbox.x0) : Number(words[i]?.x) || 0;
+        const y0 = Number.isFinite(Number(bbox.y0)) ? Number(bbox.y0) : Number(words[i]?.y) || 0;
+        const x1 = Number.isFinite(Number(bbox.x1)) ? Number(bbox.x1) : x0 + Math.max(1, Number(words[i]?.w) || 1);
+        const y1 = Number.isFinite(Number(bbox.y1)) ? Number(bbox.y1) : y0 + Math.max(8, Number(words[i]?.h) || 8);
+        items.push({ text, wordIndex: i, left: x0, top: y0, height: Math.max(8, y1 - y0) });
+      }
+      items.sort((a, b) => (Math.abs(a.top - b.top) > 1 ? a.top - b.top : a.left - b.left));
+
       const parts = [];
       const entries = [];
       let idx = 0;
-      for (let i = 0; i < words.length; i++) {
-        if (parts.length) { parts.push(" "); idx += 1; }
+      let lastTop = null;
+      let lastHeight = 10;
+      for (const item of items) {
+        if (parts.length) {
+          const lineThreshold = Math.max(6, Math.min(lastHeight, item.height) * 0.6);
+          const separator = (lastTop !== null && Math.abs(item.top - lastTop) > lineThreshold) ? "\n" : " ";
+          parts.push(separator);
+          idx += separator.length;
+        }
         const start = idx;
-        parts.push(words[i].text);
-        idx += words[i].text.length;
-        entries.push({ start, end: idx, wordIndex: i });
+        parts.push(item.text);
+        idx += item.text.length;
+        entries.push({ start, end: idx, wordIndex: item.wordIndex });
+        lastTop = item.top;
+        lastHeight = item.height;
       }
       return { text: parts.join(""), entries };
     }
@@ -921,6 +943,62 @@ Transformer.js for client‑side scripting</p>
         }
       }
       return redactedWords.join(" ");
+    }
+    function addGlobalPhraseCandidate(bucket, tokens, categoryKey) {
+      const cleanTokens = (tokens || []).map((t) => normalizeWord(t)).filter(Boolean);
+      if (!cleanTokens.length) return;
+      if (cleanTokens.length === 1 && cleanTokens[0].length < 3) return;
+      const key = cleanTokens.join(" ");
+      let entry = bucket.get(key);
+      if (!entry) {
+        entry = { tokens: cleanTokens, categoryKeys: new Set() };
+        bucket.set(key, entry);
+      }
+      if (categoryKey) entry.categoryKeys.add(categoryKey);
+    }
+    function collectGlobalPhraseCandidates(bucket, entity, hitIndexes, words) {
+      const categoryKey = String(entity?.entity_group || "").toLowerCase();
+      addGlobalPhraseCandidate(bucket, entityParts(entity?.word), categoryKey);
+      const uniqueSorted = [...new Set((hitIndexes || []).filter((idx) => Number.isInteger(idx) && idx >= 0 && idx < words.length))].sort((a, b) => a - b);
+      if (!uniqueSorted.length) return;
+      let group = [uniqueSorted[0]];
+      for (let i = 1; i < uniqueSorted.length; i++) {
+        const idx = uniqueSorted[i];
+        if (idx === group[group.length - 1] + 1) {
+          group.push(idx);
+          continue;
+        }
+        addGlobalPhraseCandidate(bucket, group.map((widx) => words[widx]?.text), categoryKey);
+        group = [idx];
+      }
+      addGlobalPhraseCandidate(bucket, group.map((widx) => words[widx]?.text), categoryKey);
+    }
+    function tokenSoftMatch(a, b) {
+      if (!a || !b) return false;
+      if (a === b) return true;
+      const minLen = Math.min(a.length, b.length);
+      if (minLen < 4) return false;
+      return a.includes(b) || b.includes(a);
+    }
+    function findPhraseMatchesInWords(words, phraseTokens) {
+      if (!Array.isArray(phraseTokens) || phraseTokens.length === 0) return [];
+      const normWords = words.map((w) => normalizeWord(w?.text));
+      const out = [];
+      const n = phraseTokens.length;
+      for (let start = 0; start <= normWords.length - n; start++) {
+        let ok = true;
+        for (let k = 0; k < n; k++) {
+          if (!tokenSoftMatch(normWords[start + k], phraseTokens[k])) {
+            ok = false;
+            break;
+          }
+        }
+        if (!ok) continue;
+        const idxs = [];
+        for (let k = 0; k < n; k++) idxs.push(start + k);
+        out.push(idxs);
+      }
+      return out;
     }
 
     function renderPageBoxes(pageIndex) {
@@ -1325,17 +1403,20 @@ Transformer.js for client‑side scripting</p>
       const pageSummaries = [];
       const debugOriginal = [];
       const debugTargets = [];
+      const globalPhraseMap = new Map();
+      const pageData = [];
       for (let pageIndex = 0; pageIndex < pageRenders.length; pageIndex++) {
         const render = pageRenders[pageIndex];
         const ocrResult = await recognizePdfPageWords(render.canvas, pageIndex + 1, scanConfig);
         const words = ocrResult.words;
-        const wordMap = buildWordMap(words.map((word) => ({ text: word.text })));
+        const wordMap = buildWordMap(words);
         const entities = await detectEntities(wordMap.text);
         allEntities.push(...entities);
         const beforeText = wordMap.text;
         const afterText = buildRedactedText(words, wordMap, entities);
 
         const boxes = [];
+        const redactedWordIndexes = new Set();
         let rectCount = 0;
         for (const word of words) {
           const rect = rectFromBbox(word.bbox);
@@ -1347,7 +1428,9 @@ Transformer.js for client‑side scripting</p>
         }
         for (const entity of entities) {
           const hitIndexes = findWordIndexesForEntity(entity, wordMap, words);
+          collectGlobalPhraseCandidates(globalPhraseMap, entity, hitIndexes, words);
           for (const idx of hitIndexes) {
+            if (redactedWordIndexes.has(idx)) continue;
             const rect = rectFromBbox(words[idx].bbox);
             boxes.push({
               x: Math.max(0, rect.x - 1),
@@ -1358,6 +1441,7 @@ Transformer.js for client‑side scripting</p>
               matchedWord: words[idx].text,
               entityWord: entity.word,
             });
+            redactedWordIndexes.add(idx);
             debugTargets.push({
               page: pageIndex + 1,
               category: String(entity.entity_group || "").toLowerCase(),
@@ -1368,26 +1452,74 @@ Transformer.js for client‑side scripting</p>
             rectCount += 1;
           }
         }
-        render.boxes = boxes;
-        renderPageBoxes(pageIndex);
-        pageSummaries.push({
-          page: pageIndex + 1,
-          ocr_engine: ocrResult.engine,
-          ocr_fallback_from_florence: ocrResult.fallback,
-          entity_count: entities.length,
-          redaction_rect_count: rectCount,
+        pageData.push({
+          pageIndex,
+          words,
+          boxes,
+          rectCount,
+          redactedWordIndexes,
+          ocrResult,
+          entities,
         });
-        console.group(`PDF text debug - page ${pageIndex + 1}`);
-        console.log("Extracted text (before redaction):", beforeText);
+      }
+
+      // Global reapply pass: any detected redaction phrase is re-applied across all pages.
+      for (const page of pageData) {
+        for (const phrase of globalPhraseMap.values()) {
+          if (!phrase.tokens.length) continue;
+          const matches = findPhraseMatchesInWords(page.words, phrase.tokens);
+          const categoryKey = phrase.categoryKeys.values().next().value || "private_person";
+          for (const seq of matches) {
+            for (const idx of seq) {
+              if (page.redactedWordIndexes.has(idx)) continue;
+              const rect = rectFromBbox(page.words[idx].bbox);
+              page.boxes.push({
+                x: Math.max(0, rect.x - 1),
+                y: Math.max(0, rect.y - 1),
+                w: rect.w + 2,
+                h: rect.h + 2,
+                categoryKey,
+                matchedWord: page.words[idx].text,
+                entityWord: phrase.tokens.join(" "),
+              });
+              page.redactedWordIndexes.add(idx);
+              page.rectCount += 1;
+              debugTargets.push({
+                page: page.pageIndex + 1,
+                category: categoryKey,
+                matchedWord: page.words[idx].text,
+                entityWord: phrase.tokens.join(" "),
+                bbox: { x: Math.max(0, rect.x - 1), y: Math.max(0, rect.y - 1), w: rect.w + 2, h: rect.h + 2 },
+              });
+            }
+          }
+        }
+      }
+
+      for (const page of pageData) {
+        const render = pageRenders[page.pageIndex];
+        render.boxes = page.boxes;
+        renderPageBoxes(page.pageIndex);
+        pageSummaries.push({
+          page: page.pageIndex + 1,
+          ocr_engine: page.ocrResult.engine,
+          ocr_fallback_from_florence: page.ocrResult.fallback,
+          entity_count: page.entities.length,
+          redaction_rect_count: page.rectCount,
+        });
+        const wordMap = buildWordMap(page.words);
+        const afterText = page.words.map((word, idx) => (page.redactedWordIndexes.has(idx) ? "[REDACTED]" : String(word.text || ""))).join(" ");
+        console.group(`PDF text debug - page ${page.pageIndex + 1}`);
+        console.log("Extracted text (before redaction):", wordMap.text);
         console.log("Extracted text (after redaction):", afterText);
         console.groupEnd();
         if (typeof onPageProcessed === "function") {
           onPageProcessed({
-            page: pageIndex + 1,
+            page: page.pageIndex + 1,
             totalPages: pageRenders.length,
-            words: words.length,
-            entities: entities.length,
-            boxes: rectCount,
+            words: page.words.length,
+            entities: page.entities.length,
+            boxes: page.rectCount,
           });
         }
       }
