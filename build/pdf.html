@@ -86,11 +86,24 @@
     .progress-label { margin:0 0 6px; color:var(--text); font:700 13px/1.3 Consolas, monospace; }
     .progress-track { width:100%; height:10px; background:#ffdede; border:1px solid var(--border); overflow:hidden; }
     .progress-fill { width:0%; height:100%; background:linear-gradient(90deg,var(--accent),var(--accent-2)); transition:width 240ms ease; }
-    .workspace-grid { display:grid; grid-template-columns:minmax(0,1fr) 250px; gap:24px; align-items:start; margin-top:18px; }
-    .preview-wrap { border:3px solid var(--border); border-radius:12px; background:var(--card-bg); box-shadow:8px 8px 0 var(--accent), 14px 14px 0 var(--accent-2); padding:10px; overflow:auto; max-height:68vh; }
-    .pdf-page-stage { position: relative; display: inline-block; line-height: 0; margin: 0 auto 12px; }
-    .pdf-preview-page { border:1px solid var(--border); display:block; margin:0 auto 12px; background:var(--panel); max-width:100%; height:auto; }
-    .pdf-page-stage .pdf-preview-page { margin: 0; }
+    #results-section { overflow: visible; }
+    .workspace-grid { display:grid; grid-template-columns:minmax(0,1fr) 250px; gap:24px; align-items:start; margin-top:18px; min-width:0; }
+    .preview-column { width:100%; min-width:0; }
+    .preview-toolbar { display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin:0 0 12px; }
+    .preview-hint { margin:0; color:var(--muted); font:700 .72rem/1.35 Arial, Helvetica, sans-serif; flex:1 1 220px; }
+    .preview-wrap {
+      width:100%;
+      min-width:0;
+      border:3px solid var(--border);
+      border-radius:12px;
+      background:var(--card-bg);
+      box-shadow:8px 8px 0 var(--accent), 14px 14px 0 var(--accent-2);
+      padding:10px;
+      overflow:visible;
+    }
+    .pdf-page-stage { position:relative; display:block; width:100%; max-width:100%; line-height:0; margin:0 auto 16px; }
+    .pdf-preview-page { border:1px solid var(--border); display:block; width:100%; height:auto; background:var(--panel); }
+    .pdf-page-stage .pdf-preview-page { margin:0; }
     .page-overlay { position: absolute; inset: 0; pointer-events: auto; }
     .redaction-box { position: absolute; border: 2px solid #fff; outline: 1px solid var(--border); background: #000; cursor: grab; }
     .redaction-box.selected { outline: 3px dashed #ffe600; }
@@ -135,6 +148,7 @@
     .help-card { width: min(560px, 100%); max-height: min(82vh, 760px); border: 3px solid var(--border); border-radius: var(--radius); background: var(--card-bg); color: var(--text); box-shadow: 12px 12px 0 var(--accent-2); padding: 18px 18px 14px; overflow-y: auto; }
     .help-actions { display:flex; justify-content:flex-end; }
     @media (max-width:980px){ .workspace-grid { grid-template-columns:1fr; } .category-panel { position:static; } }
+    @media (min-width:981px){ .preview-column { grid-column:1; } }
   </style>
   <!-- Google Tag Manager -->
   <script>(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
@@ -216,7 +230,11 @@ No signup, no paywall, completely FREE.    </p>
         <h2 class="section-title">Result section</h2>
       </div>
       <div id="results-grid" class="workspace-grid">
-      <div>
+      <div class="preview-column">
+        <div class="preview-toolbar">
+          <button id="remove-redaction-btn" class="small-action-btn" type="button" disabled><i class="fa-solid fa-trash"></i> Remove selected</button>
+          <p class="preview-hint">Drag on empty page area to add a custom redaction. Click a box to select, then drag or resize. Delete removes the selected box.</p>
+        </div>
         <div id="preview-wrap" class="preview-wrap"></div>
         <br/><br/><br/>
         <details id="detection-details" hidden>
@@ -302,6 +320,7 @@ Transformer.js for client‑side scripting</p>
     const resultsSection = document.querySelector("#results-section");
     const resultsGrid = document.querySelector("#results-grid");
     const previewWrap = document.querySelector("#preview-wrap");
+    const removeRedactionBtn = document.querySelector("#remove-redaction-btn");
     const categoryPanel = document.querySelector("#category-panel");
     const detectionDetails = document.querySelector("#detection-details");
     const categoryList = document.querySelector("#category-list");
@@ -324,6 +343,8 @@ Transformer.js for client‑side scripting</p>
     let faceLandmarkerPromise;
     let selectedBox = null;
     let interaction = null;
+    let drawInteraction = null;
+    let draftBoxEl = null;
     let dependenciesReady = false;
     let latestDebugPayload = null;
     let tesseractWorkerPromise;
@@ -1027,6 +1048,7 @@ Transformer.js for client‑side scripting</p>
 
     function renderAllBoxes() {
       for (let i = 0; i < pageRenders.length; i++) renderPageBoxes(i);
+      updateRemoveRedactionBtn();
     }
 
     function clampBoxToCanvas(box, canvas) {
@@ -1035,6 +1057,42 @@ Transformer.js for client‑side scripting</p>
       box.w = Math.max(4, Math.min(canvas.width - box.x, box.w));
       box.h = Math.max(4, Math.min(canvas.height - box.y, box.h));
       return box;
+    }
+
+    function overlayScale(render) {
+      const rect = render.overlay.getBoundingClientRect();
+      return {
+        x: render.canvas.width / (rect.width || render.canvas.width),
+        y: render.canvas.height / (rect.height || render.canvas.height),
+      };
+    }
+
+    function clientToCanvas(render, clientX, clientY) {
+      const rect = render.overlay.getBoundingClientRect();
+      const scale = overlayScale(render);
+      return {
+        x: (clientX - rect.left) * scale.x,
+        y: (clientY - rect.top) * scale.y,
+      };
+    }
+
+    function updateRemoveRedactionBtn() {
+      removeRedactionBtn.disabled = !selectedBox;
+    }
+
+    function removeSelectedBox() {
+      if (!selectedBox) return;
+      const render = pageRenders[selectedBox.pageIndex];
+      if (!render || !render.boxes[selectedBox.boxIndex]) return;
+      render.boxes.splice(selectedBox.boxIndex, 1);
+      selectedBox = null;
+      renderAllBoxes();
+      updateRemoveRedactionBtn();
+    }
+
+    function clearDraftBox() {
+      if (draftBoxEl) draftBoxEl.remove();
+      draftBoxEl = null;
     }
 
     function isEmailLocalChar(ch) {
@@ -1338,10 +1396,6 @@ Transformer.js for client‑side scripting</p>
         await page.render({ canvasContext: canvas.getContext("2d"), viewport }).promise;
         const overlay = document.createElement("div");
         overlay.className = "page-overlay";
-        overlay.style.width = `${canvas.width}px`;
-        overlay.style.height = `${canvas.height}px`;
-        stage.style.width = `${canvas.width}px`;
-        stage.style.height = `${canvas.height}px`;
         stage.appendChild(canvas);
         stage.appendChild(overlay);
         const baseViewport = page.getViewport({ scale: 1 });
@@ -1693,8 +1747,8 @@ Transformer.js for client‑side scripting</p>
       localStorage.setItem("redact-pdf-scan-mode", mode);
       setStatus(`Scan mode set to ${SCAN_MODE_CONFIG[mode].label}.`);
     });
-    downloadBtn.addEventListener("click", () => {
-      if (!redactedPdfBytes) return;
+    downloadBtn.addEventListener("click", async () => {
+      if (!pageRenders.length) return;
       const editedTargets = pageRenders.flatMap((render, index) =>
         render.boxes.map((box) => ({
           page: index + 1,
@@ -1711,14 +1765,26 @@ Transformer.js for client‑side scripting</p>
       console.log("Final edited redaction targets:", editedTargets);
       console.table(editedTargets.slice(0, 300));
       console.groupEnd();
-      const blob = new Blob([cloneBytes(redactedPdfBytes)], { type: "application/pdf" });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = "redacted.pdf";
-      a.click();
-      URL.revokeObjectURL(url);
+      downloadBtn.disabled = true;
+      try {
+        setStatus("Building PDF from current redaction boxes...");
+        const bytes = await buildPdfFromRenderedPages(pageRenders);
+        const blob = new Blob([cloneBytes(bytes)], { type: "application/pdf" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = "redacted.pdf";
+        a.click();
+        URL.revokeObjectURL(url);
+        setStatus("Downloaded redacted PDF with your edits.");
+      } catch (error) {
+        console.error(error);
+        setStatus(`Download error: ${error.message}`);
+      } finally {
+        downloadBtn.disabled = false;
+      }
     });
+    removeRedactionBtn.addEventListener("click", removeSelectedBox);
     categoryList.addEventListener("click", (event) => {
       const item = event.target.closest(".category-item");
       if (!item) return;
@@ -1736,36 +1802,71 @@ Transformer.js for client‑side scripting</p>
 
     previewWrap.addEventListener("pointerdown", (event) => {
       const boxEl = event.target.closest(".redaction-box");
-      if (!boxEl) {
+      if (boxEl) {
+        const pageIndex = Number(boxEl.dataset.pageIndex);
+        const boxIndex = Number(boxEl.dataset.boxIndex);
+        const render = pageRenders[pageIndex];
+        if (!render || !render.boxes[boxIndex]) return;
+        const mode = event.target.classList.contains("redaction-resize") ? "resize" : "drag";
+        const start = clientToCanvas(render, event.clientX, event.clientY);
+
+        selectedBox = { pageIndex, boxIndex };
+        interaction = {
+          mode,
+          pageIndex,
+          boxIndex,
+          startX: start.x,
+          startY: start.y,
+          original: { ...render.boxes[boxIndex] },
+        };
+        boxEl.setPointerCapture(event.pointerId);
+        renderAllBoxes();
+        return;
+      }
+
+      const overlay = event.target.closest(".page-overlay");
+      if (!overlay) {
         selectedBox = null;
         renderAllBoxes();
         return;
       }
-      const pageIndex = Number(boxEl.dataset.pageIndex);
-      const boxIndex = Number(boxEl.dataset.boxIndex);
+      const pageIndex = pageRenders.findIndex((r) => r.overlay === overlay);
+      if (pageIndex < 0) return;
       const render = pageRenders[pageIndex];
-      if (!render || !render.boxes[boxIndex]) return;
-      const mode = event.target.classList.contains("redaction-resize") ? "resize" : "drag";
-
-      selectedBox = { pageIndex, boxIndex };
-      interaction = {
-        mode,
-        pageIndex,
-        boxIndex,
-        startX: event.clientX,
-        startY: event.clientY,
-        original: { ...render.boxes[boxIndex] },
-      };
-      boxEl.setPointerCapture(event.pointerId);
-      renderAllBoxes();
+      const start = clientToCanvas(render, event.clientX, event.clientY);
+      selectedBox = null;
+      updateRemoveRedactionBtn();
+      clearDraftBox();
+      drawInteraction = { pageIndex, startX: start.x, startY: start.y };
+      draftBoxEl = document.createElement("div");
+      draftBoxEl.className = "redaction-box selected";
+      draftBoxEl.style.pointerEvents = "none";
+      overlay.appendChild(draftBoxEl);
+      overlay.setPointerCapture(event.pointerId);
     });
 
     previewWrap.addEventListener("pointermove", (event) => {
+      if (drawInteraction) {
+        const render = pageRenders[drawInteraction.pageIndex];
+        if (!render || !draftBoxEl) return;
+        const current = clientToCanvas(render, event.clientX, event.clientY);
+        const x = Math.min(drawInteraction.startX, current.x);
+        const y = Math.min(drawInteraction.startY, current.y);
+        const w = Math.abs(current.x - drawInteraction.startX);
+        const h = Math.abs(current.y - drawInteraction.startY);
+        const scale = overlayScale(render);
+        draftBoxEl.style.left = `${x / scale.x}px`;
+        draftBoxEl.style.top = `${y / scale.y}px`;
+        draftBoxEl.style.width = `${w / scale.x}px`;
+        draftBoxEl.style.height = `${h / scale.y}px`;
+        return;
+      }
       if (!interaction) return;
       const render = pageRenders[interaction.pageIndex];
       if (!render) return;
-      const dx = event.clientX - interaction.startX;
-      const dy = event.clientY - interaction.startY;
+      const current = clientToCanvas(render, event.clientX, event.clientY);
+      const dx = current.x - interaction.startX;
+      const dy = current.y - interaction.startY;
       const next = { ...interaction.original };
       if (interaction.mode === "resize") {
         next.w = interaction.original.w + dx;
@@ -1778,12 +1879,41 @@ Transformer.js for client‑side scripting</p>
       renderPageBoxes(interaction.pageIndex);
     });
 
-    previewWrap.addEventListener("pointerup", () => {
+    previewWrap.addEventListener("pointerup", (event) => {
+      if (drawInteraction) {
+        const render = pageRenders[drawInteraction.pageIndex];
+        if (render) {
+          const end = clientToCanvas(render, event.clientX, event.clientY);
+          const x = Math.min(drawInteraction.startX, end.x);
+          const y = Math.min(drawInteraction.startY, end.y);
+          const w = Math.abs(end.x - drawInteraction.startX);
+          const h = Math.abs(end.y - drawInteraction.startY);
+          if (w >= 8 && h >= 8) {
+            const box = clampBoxToCanvas({
+              x,
+              y,
+              w,
+              h,
+              categoryKey: "custom",
+              matchedWord: "",
+              entityWord: "manual",
+            }, render.canvas);
+            render.boxes.push(box);
+            selectedBox = { pageIndex: drawInteraction.pageIndex, boxIndex: render.boxes.length - 1 };
+          }
+        }
+        clearDraftBox();
+        drawInteraction = null;
+        renderAllBoxes();
+        return;
+      }
       interaction = null;
     });
 
     previewWrap.addEventListener("pointercancel", () => {
       interaction = null;
+      drawInteraction = null;
+      clearDraftBox();
     });
 
     document.addEventListener("keydown", (event) => {
@@ -1791,12 +1921,8 @@ Transformer.js for client‑side scripting</p>
       const activeTag = document.activeElement?.tagName?.toLowerCase();
       if (activeTag === "input" || activeTag === "textarea") return;
       if (!selectedBox) return;
-      const render = pageRenders[selectedBox.pageIndex];
-      if (!render || !render.boxes[selectedBox.boxIndex]) return;
       event.preventDefault();
-      render.boxes.splice(selectedBox.boxIndex, 1);
-      selectedBox = null;
-      renderAllBoxes();
+      removeSelectedBox();
     });
 
     helpFab.addEventListener("click", () => { helpModal.hidden = false; });
